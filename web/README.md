@@ -28,6 +28,25 @@ Qualquer servidor estático funciona (`npx serve`, `php -S`, etc.).
 
 ---
 
+## GitHub Pages
+
+O site é publicado pelo workflow `.github/workflows/pages.yml`, que envia o
+conteúdo de `web/` como artifact. Não há build: o Pages serve os arquivos
+estáticos diretamente, com os caminhos relativos funcionando sob `/ECOS94/`.
+
+1. No repositório, abra **Settings → Pages**.
+2. Em **Build and deployment → Source**, selecione **GitHub Actions**.
+3. Faça push em `master` ou `feat/web` alterando `web/**`, ou rode o workflow
+   manualmente em **Actions → Deploy web → Run workflow**.
+
+O jogo fica em <https://patoricardo.github.io/ECOS94/>.
+
+O `run.bat` continua sendo só para rodar localmente; o Pages não precisa dele.
+Se o ambiente `github-pages` estiver restrito a branches protegidas, faça o
+merge em `master` antes de publicar.
+
+---
+
 ## Controles
 
 ### Desktop
