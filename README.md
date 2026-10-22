@@ -35,6 +35,13 @@ O jogo usa a tela inteira (buffer alternativo do console) e lê o teclado sem es
 
 A paleta e o modo fósforo também podem ser alternados **em tempo real**, pelo menu de título.
 
+### Versão web (navegador)
+
+O porte para navegador fica em [`web/`](web/README.md): mesma lógica de
+setores, sonar, portas, ROMs e IA, com canvas e controles de toque para
+mobile. Rode `web\run.bat` (ou `cd web && python -m http.server 8765`) e
+abra <http://localhost:8765/>. Detalhes em [`web/README.md`](web/README.md).
+
 ---
 
 ## Controles
@@ -100,6 +107,7 @@ ECOS94/
 │   ├── simulate.py      suíte de testes headless + bot que joga sozinho
 │   ├── duel.py          duelo 1x1 por profundidade e tabela do chefe
 │   └── balance.py       grade paramétrica de balanceamento
+├── web/                  porte jogável no navegador (ver web/README.md)
 └── docs/
     ├── ECOS94.docx              manual do jogo
     └── RELATORIO-DE-TRABALHO.docx  relatório de trabalho

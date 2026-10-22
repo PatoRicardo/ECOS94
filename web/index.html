@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#040604" />
+    <meta
+      name="description"
+      content="ECOS '94 — roguelike ASCII de terminal, agora no navegador."
+    />
+    <title>ECOS '94 — WEB</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- ---------------------------------------------------------- TITLE -->
+      <section id="screen-title" class="screen hidden">
+        <pre id="logo" aria-label="ECOS 94"></pre>
+        <p class="tagline">A ROGUELIKE IN THE DARK</p>
+        <p class="tagline sub">EVERY LOOKOUT COSTS NOISE. NOISE ATTRACTS.</p>
+        <nav id="title-menu" aria-label="Menu principal"></nav>
+        <footer class="title-footer">
+          <span id="title-seed">LAST SEED: 0</span>
+          <span>v1.04 WEB</span>
+        </footer>
+      </section>
+
+      <!-- ----------------------------------------------------------- GAME -->
+      <section id="screen-game" class="screen hidden">
+        <header id="hud">
+          <div class="hud-row hud-top">
+            <span class="brand">ECOS '94</span>
+            <span id="hud-sector">S01/10</span>
+            <span id="hud-hp">HP 28/28</span>
+            <span id="hud-atk">ATK 3</span>
+            <span id="hud-def">DEF 0</span>
+            <span id="hud-alert">AL 0</span>
+            <button id="btn-menu" class="hud-menu" aria-label="Menu">☰</button>
+          </div>
+          <div class="hud-row hud-bars">
+            <span class="lbl">LOAD</span>
+            <div class="bar"><i id="bar-load" data-level="ok"></i></div>
+            <span id="hud-load">7/40</span>
+            <span class="lbl">NOISE</span>
+            <div class="bar"><i id="bar-noise" data-level="ok"></i></div>
+            <span id="hud-noise">0</span>
+          </div>
+          <div class="hud-row hud-roms">
+            <span class="lbl">ROMS</span>
+            <span id="hud-roms">-</span>
+            <span id="hud-slots">0/3</span>
+          </div>
+        </header>
+
+        <div id="stage">
+          <canvas id="map" aria-label="Setor"></canvas>
+          <div id="ripple" aria-hidden="true"></div>
+          <div class="scanlines" aria-hidden="true"></div>
+          <div class="vignette" aria-hidden="true"></div>
+        </div>
+
+        <div id="hint" class="hidden" role="status"></div>
+        <div id="log" role="status" aria-live="polite" title="Ver histórico"></div>
+
+        <div id="touch">
+          <div class="dpad" role="group" aria-label="Movimento">
+            <button class="key up" data-dir="up" aria-label="Mover para cima">▲</button>
+            <button class="key left" data-dir="left" aria-label="Mover para a esquerda">◀</button>
+            <button class="key right" data-dir="right" aria-label="Mover para a direita">▶</button>
+            <button class="key down" data-dir="down" aria-label="Mover para baixo">▼</button>
+          </div>
+          <div class="actions">
+            <button id="btn-interact" class="key wide primary">INTERACT</button>
+            <button id="btn-inventory" class="key wide">INVENTORY</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ------------------------------------------------------------- BOOT -->
+    <div id="boot" class="hidden"><pre id="boot-text"></pre></div>
+
+    <!-- ---------------------------------------------------------- OVERLAY -->
+    <div
+      id="overlay"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="overlay-title"
+    >
+      <div class="panel" id="panel">
+        <header class="panel-head">
+          <h2 id="overlay-title"></h2>
+          <button id="overlay-close" class="x" aria-label="Fechar">✕</button>
+        </header>
+        <p id="overlay-sub" class="sub"></p>
+        <div id="overlay-body" class="body"></div>
+        <div id="overlay-actions" class="actions-list"></div>
+      </div>
+    </div>
+
+    <div id="file-warning" class="file-warning hidden">
+      <h1>ABRA COM O SERVIDOR LOCAL</h1>
+      <p>
+        Este jogo usa módulos ES e o navegador bloqueia imports a partir de
+        <code>file://</code>.
+      </p>
+      <p>Dê duplo clique em <code>web\run.bat</code> ou rode:</p>
+      <pre>cd web
+python -m http.server 8765</pre>
+      <p>Depois abra <code>http://localhost:8765/</code>.</p>
+    </div>
+
+    <noscript>
+      <div class="file-warning">
+        <h1>JAVASCRIPT DESATIVADO</h1>
+        <p>ECOS '94 precisa de JavaScript para rodar.</p>
+      </div>
+    </noscript>
+
+    <script>
+      // Módulos ES não carregam em file://. Avisa antes do erro de console.
+      if (location.protocol === "file:") {
+        document.getElementById("app").classList.add("hidden");
+        document.getElementById("file-warning").classList.remove("hidden");
+      }
+    </script>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

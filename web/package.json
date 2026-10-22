@@ -1,0 +1,11 @@
+{
+  "name": "ecos94-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ECOS '94 — porte web do roguelike ASCII (sem dependencias)",
+  "scripts": {
+    "test": "node tests/simulate.mjs",
+    "serve": "python -m http.server 8765"
+  }
+}
