@@ -30,22 +30,19 @@ Qualquer servidor estático funciona (`npx serve`, `php -S`, etc.).
 
 ## GitHub Pages
 
-O site é publicado pelo workflow `.github/workflows/pages.yml`, que envia o
-conteúdo de `web/` como artifact. Não há build: o Pages serve os arquivos
-estáticos diretamente, com os caminhos relativos funcionando sob `/ECOS94/`.
+O site está publicado em <https://patoricardo.github.io/ECOS94/> pelo workflow
+`.github/workflows/pages.yml`, que envia o conteúdo de `web/` como artifact.
+Não há build: o Pages serve os arquivos estáticos diretamente, com os caminhos
+relativos funcionando sob `/ECOS94/`.
 
-O workflow tenta habilitar o Pages automaticamente. Se a política do
-repositório ou da organização bloquear, faça uma vez em **Settings → Pages →
-Build and deployment → Source: GitHub Actions**.
-
-Depois, faça push em `master` ou `feat/web` alterando `web/**`, ou rode o
-workflow manualmente em **Actions → Deploy web → Run workflow**.
-
-O jogo fica em <https://patoricardo.github.io/ECOS94/>.
+- **Fonte:** GitHub Actions, em **Settings → Pages**.
+- **Deploy:** push em `master` ou `feat/web` alterando `web/**`, ou
+  **Actions → Deploy web → Run workflow**.
+- **Branch:** o ambiente `github-pages` está liberado para `master` e
+  `feat/web`. Para outra branch, ajuste em **Settings → Environments →
+  github-pages → Deployment branches**.
 
 O `run.bat` continua sendo só para rodar localmente; o Pages não precisa dele.
-Se o ambiente `github-pages` estiver restrito a branches protegidas, faça o
-merge em `master` antes de publicar.
 
 ---
 

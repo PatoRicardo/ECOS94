@@ -39,8 +39,11 @@ A paleta e o modo fósforo também podem ser alternados **em tempo real**, pelo 
 
 O porte para navegador fica em [`web/`](web/README.md): mesma lógica de
 setores, sonar, portas, ROMs e IA, com canvas e controles de toque para
-mobile. Rode `web\run.bat` (ou `cd web && python -m http.server 8765`) e
-abra <http://localhost:8765/>. Detalhes em [`web/README.md`](web/README.md).
+mobile. **Jogue online em <https://patoricardo.github.io/ECOS94/>.**
+
+Para rodar localmente, use `web\run.bat` (ou
+`cd web && python -m http.server 8765`) e abra <http://localhost:8765/>.
+Detalhes em [`web/README.md`](web/README.md).
 
 ---
 
