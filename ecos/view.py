@@ -218,7 +218,7 @@ def draw_list_panel(r, width: int, height: int, entries, title: str, hint: str =
 
 
 def draw_measure_hint(r, game, width: int, height: int) -> None:
-    r.put_text(0, height - 2, "RULER: CHOOSE A DIRECTION (ESC CANCELS)", LCYAN)
+    r.put_text(0, height - 2, "RULER: CHOOSE A DIRECTION WITH THE ARROWS (ESC CANCELS)", LCYAN)
 
 
 def draw_log(r, game, width: int, height: int) -> None:
@@ -252,11 +252,12 @@ def draw_help(r, width: int, height: int) -> None:
     x = (width - w) // 2
     y = (height - h) // 2
     lines = [
-        ("MOVE     ARROWS  WASD  VI-KEYS  NUMPAD", WHITE),
+        ("MOVE     ARROW KEYS ONLY (UP DOWN LEFT RIGHT)", WHITE),
+        ("LETTERS  UPPERCASE OR LOWERCASE - SAME COMMAND", LGRAY),
         ("S / P    SONAR PING (LOUD, 30 NOISE)", LCYAN),
-        ("M        RULER MEASURE - DIRECTION (2 NOISE)", LCYAN),
-        ("L        LOCK THE DOOR BESIDE YOU", YELLOW),
-        ("U        UNLOCK THE DOOR BESIDE YOU", YELLOW),
+        ("M        RULER MEASURE - ARROW DIRECTION (2 NOISE)", LCYAN),
+        ("L        LOCK A DOOR BESIDE YOU", YELLOW),
+        ("U        UNLOCK A LOCKED DOOR BESIDE YOU", YELLOW),
         ("B        FORCE A LOCKED DOOR (3 TRIES)", LRED),
         ("G        TAKE WHAT IS UNDER YOU", LGREEN),
         ("D        DROP SOMETHING (LOAD!)", LGREEN),
@@ -339,7 +340,7 @@ def draw_title(r, width: int, height: int, options) -> None:
     r.put_text(
         max(0, (width - 46) // 2),
         height - 3,
-        "ARROWS/WASD/VI-KEYS MOVE   ? HELP IN GAME",
+        "ARROW KEYS MOVE   ? HELP IN GAME",
         DGRAY,
     )
     r.put_text(

@@ -32,31 +32,14 @@ from .rng import Rng
 
 DIRS8 = ((0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (1, -1), (-1, 1), (1, 1))
 
+# Direcao vem SO das setas do teclado (kind devolvido pelo terminal).
+# WASD, hjkl, vi-keys e numpad nao movem mais: as letras ficam
+# exclusivamente para os comandos, sem conflito entre eles.
 DIR_BY_KEY = {
     "up": (0, -1),
     "down": (0, 1),
     "left": (-1, 0),
     "right": (1, 0),
-    "upleft": (-1, -1),
-    "upright": (1, -1),
-    "downleft": (-1, 1),
-    "downright": (1, 1),
-}
-
-# Teclas de movimento por caractere.WASD e vi-keys em minuscula.
-MOVE_CHARS = {
-    "w": (0, -1),
-    "s": (0, 1),
-    "a": (-1, 0),
-    "d": (1, 0),
-    "k": (0, -1),
-    "j": (0, 1),
-    "h": (-1, 0),
-    "l": (1, 0),
-    "y": (-1, -1),
-    "u": (1, -1),
-    "b": (-1, 1),
-    "n": (1, 1),
 }
 
 MAX_BEAM = 30
@@ -182,30 +165,28 @@ class Game:
         if kind != "char" or not ch:
             return "ok"
 
+        # O movimento e so pelas setas, entao nenhuma letra disputa tecla
+        # com ele: cada comando aceita MAIUSCULA e minuscula.
         lower = ch.lower()
-        if lower in MOVE_CHARS and ch.islower():
-            self.move(*MOVE_CHARS[lower])
-            return "ok"
-
-        if ch == "S" or lower == "p":
+        if lower in ("s", "p"):
             self.ping()
-        elif ch == "M" or lower == "m":
+        elif lower == "m":
             self.begin_measure()
-        elif ch == "L":
+        elif lower == "l":
             self.lock_door()
-        elif ch == "U":
+        elif lower == "u":
             self.unlock_door()
-        elif ch == "G" or lower == "g":
+        elif lower == "g":
             self.pickup()
-        elif ch == "D":
+        elif lower == "d":
             self.begin_drop()
-        elif ch == "I" or lower == "i":
+        elif lower == "i":
             self.begin_inventory()
-        elif ch == "X" or lower == "x":
+        elif lower == "x":
             self.reset_sector()
-        elif ch == "B":
+        elif lower == "b":
             self.brute_force()
-        elif ch == "Q" or lower == "q":
+        elif lower == "q":
             return "title"
         elif ch == "?":
             self.mode = "help"
@@ -300,21 +281,32 @@ class Game:
         self.end_turn()
 
     # ---------------------------------------------------------------- portas
-    def _adjacent_door(self):
+    def _adjacent_door(self, want: str | None = None, avoid: str | None = None):
+        """Porta vizinha, filtrando pelo estado.
+
+        Sem filtro devolve a primeira porta que encontrar. Com want/avoid
+        devolve a primeira porta no estado pedido - sem isso, estar ao lado
+        de uma porta aberta e de uma trancada fazia U e B falharem.
+        """
         player = self.player
         for dx, dy in DIRS8:
             tile = self.level.tile(player.x + dx, player.y + dy)
-            if tile is not None and tile.is_door():
-                return tile
+            if tile is None or not tile.is_door():
+                continue
+            if want is not None and tile.door != want:
+                continue
+            if avoid is not None and tile.door == avoid:
+                continue
+            return tile
         return None
 
     def lock_door(self) -> None:
-        tile = self._adjacent_door()
-        if tile is None:
+        if self._adjacent_door() is None:
             self.msg("NO DOOR BESIDE YOU.")
             return
-        if tile.door == DOOR_LOCKED:
-            self.msg("THE DOOR IS ALREADY LOCKED.")
+        tile = self._adjacent_door(avoid=DOOR_LOCKED)
+        if tile is None:
+            self.msg("EVERY DOOR BESIDE YOU IS ALREADY LOCKED.")
             return
         tile.door = DOOR_LOCKED
         self.add_noise(NOISE["lock"], (self.player.x, self.player.y))
@@ -323,8 +315,8 @@ class Game:
         self.end_turn()
 
     def unlock_door(self) -> None:
-        tile = self._adjacent_door()
-        if tile is None or tile.door != DOOR_LOCKED:
+        tile = self._adjacent_door(want=DOOR_LOCKED)
+        if tile is None:
             self.msg("NO LOCKED DOOR BESIDE YOU.")
             return
         tile.door = DOOR_OPEN
@@ -337,8 +329,8 @@ class Game:
         self.end_turn()
 
     def brute_force(self) -> None:
-        tile = self._adjacent_door()
-        if tile is None or tile.door != DOOR_LOCKED:
+        tile = self._adjacent_door(want=DOOR_LOCKED)
+        if tile is None:
             self.msg("NO LOCKED DOOR BESIDE YOU.")
             return
         tile.brute += 1
@@ -450,6 +442,10 @@ class Game:
     def use_item(self, item: Item) -> None:
         player = self.player
         data = item.data
+        if item.category != "consumable":
+            # RULER, armas e armaduras nao se usam: nao podem ser gastas.
+            self.msg(f"THE {item.name} CANNOT BE USED.")
+            return
         if data.get("heal"):
             player.hp = min(player.max_hp, player.hp + data["heal"])
             self.msg(f"THE {item.name} HEALS {data['heal']} HP.", LGREEN)
@@ -522,11 +518,7 @@ class Game:
                 self.mode = "play"
                 self.prompt = None
                 return "ok"
-            delta = None
-            if kind in DIR_BY_KEY:
-                delta = DIR_BY_KEY[kind]
-            elif kind == "char" and ch.islower() and ch.lower() in MOVE_CHARS:
-                delta = MOVE_CHARS[ch.lower()]
+            delta = DIR_BY_KEY.get(kind)
             if delta:
                 self.mode = "play"
                 self.prompt = None
@@ -563,7 +555,10 @@ class Game:
                             "items": items,
                             "selected": item,
                         }
-                        self.msg(f"{item.name} SELECTED. [U] USE  [D] DROP  [ESC] BACK.")
+                        if item.category == "consumable":
+                            self.msg(f"{item.name} SELECTED. [U] USE  [D] DROP  [ESC] BACK.")
+                        else:
+                            self.msg(f"{item.name} SELECTED. [D] DROP  [ESC] BACK.")
                 return "ok"
             if action == "itemmenu" and kind == "char":
                 selected = prompt.get("selected")

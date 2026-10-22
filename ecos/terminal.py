@@ -74,32 +74,20 @@ UP = "up"
 DOWN = "down"
 LEFT = "left"
 RIGHT = "right"
-UPRIGHT = "upright"
-UPLEFT = "upleft"
-DOWNRIGHT = "downright"
-DOWNLEFT = "downleft"
 ENTER = "enter"
 BACKSPACE = "backspace"
 ESCAPE = "escape"
 CHAR = "char"
 CTRL_C = "ctrl_c"
 
+# Somente as setas do teclado produzem direcao. Nenhum outro botao
+# (WASD, hjkl, vi-keys, numpad) e mapeado aqui de proposito: as letras
+# ficam livres para os comandos e nao ha conflito entre elas.
 _ARROWS = {
     "H": UP,
     "P": DOWN,
     "K": LEFT,
     "M": RIGHT,
-}
-
-_NUMPAD = {
-    "8": UP,
-    "2": DOWN,
-    "4": LEFT,
-    "6": RIGHT,
-    "7": UPLEFT,
-    "9": UPRIGHT,
-    "1": DOWNLEFT,
-    "3": DOWNRIGHT,
 }
 
 
@@ -183,8 +171,6 @@ class Terminal:
                 return (CHAR, "")
             if code in _ARROWS:
                 return (_ARROWS[code], "")
-            if code in _NUMPAD:
-                return (_NUMPAD[code], "")
             return (CHAR, "")
         if ch == "\x03":
             return (CTRL_C, "")

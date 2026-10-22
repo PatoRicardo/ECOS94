@@ -39,20 +39,22 @@ A paleta e o modo fósforo também podem ser alternados **em tempo real**, pelo 
 
 ## Controles
 
-Movimento: setas, `WASD`, `hjkl`, vi-keys `yubn` e numpad.
+Movimento: **apenas as setas do teclado** (`↑` `↓` `←` `→`). Nenhuma outra tecla move o jogador — `WASD`, `hjkl`, vi-keys e numpad foram removidos de propósito, para as letras ficarem livres para os comandos e não haver conflito entre eles.
 
-Comandos são **maiúsculas** (o que separa comando de movimento no mesmo teclado); as minúsculas são atalhos para os mais usados:
+Comandos funcionam em **maiúscula ou minúscula** — como o movimento não usa mais letras, não há disputa de tecla (`L` = `l`, `U` = `u`, `B` = `b`, …). O `S` tem o atalho `P` (`p`).
 
 | Tecla | Ação |
 |---|---|
+| `↑` `↓` `←` `→` | Mover o jogador |
 | `S` (`p`) | Ping do sonar — revela um círculo, custa 30 de ruído |
-| `M` (`m`) + direção | Usar o RULER — mede uma linha reta, custa 2 de ruído |
-| `L` / `U` | Trancar / destrancar a porta ao lado |
+| `M` (`m`) + seta | Usar o RULER — mede uma linha reta, custa 2 de ruído |
+| `L` (`l`) | Trancar a porta ao lado |
+| `U` (`u`) | Destrancar a porta trancada ao lado |
 | `G` (`g`) | Pegar item do chão |
 | `I` (`i`) | Inventário / usar consumível |
-| `D` | Largar item |
+| `D` (`d`) | Largar item |
 | `X` (`x`) | RESET do setor (custa ALERT +1 permanente) |
-| `B` | Força bruta na porta travada |
+| `B` (`b`) | Força bruta na porta travada |
 | `.` | Esperar 1 turno |
 | `?` | Ajuda |
 | `Q` (`q`) | Voltar ao menu / sair |

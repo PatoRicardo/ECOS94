@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ecos import audio  # noqa: E402
 from ecos.actions import Game  # noqa: E402
-from ecos.data import DOOR_LOCKED  # noqa: E402
+from ecos.data import DOOR_CLOSED, DOOR_LOCKED, DOOR_OPEN  # noqa: E402
 from ecos.dungeon import generate  # noqa: E402
 from ecos.rng import Rng  # noqa: E402
 
@@ -127,18 +127,6 @@ KEYS = [
     ("down", ""),
     ("left", ""),
     ("right", ""),
-    ("char", "w"),
-    ("char", "a"),
-    ("char", "s"),
-    ("char", "d"),
-    ("char", "h"),
-    ("char", "j"),
-    ("char", "k"),
-    ("char", "l"),
-    ("char", "y"),
-    ("char", "u"),
-    ("char", "b"),
-    ("char", "n"),
     ("char", "S"),
     ("char", "p"),
     ("char", "M"),
@@ -176,7 +164,7 @@ def test_commands() -> None:
 
     game.begin_measure()
     check(game.mode == "prompt", "M abre prompt do RULER")
-    game.handle_key("char", "h")
+    game.handle_key("left", "")
     check(game.mode == "play", "direcao fecha o prompt do RULER")
     check(len(game.beam) >= 0, "RULER desenhou o feixe")
 
@@ -233,6 +221,152 @@ def test_commands() -> None:
             len(game2.level.monsters) > monsters_before,
             "forca bruta que falha dispara PURGE com monstros",
         )
+
+
+def test_door_commands() -> None:
+    print("\n== Portas ==")
+    from ecos.entities import Item
+
+    def place(game, states):
+        """Coloca o jogador num chao adjacente a portas com os estados dados.
+
+        Varre nas 8 direcoes, na mesma ordem do jogo, para reproduzir o caso
+        em que uma porta aberta vem antes da trancada na busca.
+        """
+        order = ((0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (1, -1), (-1, 1), (1, 1))
+        lvl = game.level
+        for y in range(lvl.h):
+            for x in range(lvl.w):
+                doors = []
+                for dx, dy in order:
+                    nx, ny = x + dx, y + dy
+                    if not lvl.in_bounds(nx, ny):
+                        continue
+                    tile = lvl.tiles[ny][nx]
+                    if tile.is_door():
+                        doors.append(tile)
+                if len(doors) < len(states):
+                    continue
+                for tile, state in zip(doors, states):
+                    tile.door = state
+                game.player.x, game.player.y = x, y
+                return doors
+        return None
+
+    # B: forca bruta contra a porta trancada
+    game = Game(77)
+    doors = place(game, [DOOR_LOCKED])
+    game.handle_key("char", "B")
+    check(
+        doors[0].brute == 1 and "DOOR HOLDS" in game.messages[-1][0],
+        "B forca a porta trancada",
+    )
+
+    # U: destranca a porta trancada
+    game = Game(77)
+    doors = place(game, [DOOR_LOCKED])
+    game.handle_key("char", "U")
+    check(doors[0].door == DOOR_OPEN, "U destranca a porta trancada")
+
+    # L: tranca a porta do lado
+    game = Game(77)
+    doors = place(game, [DOOR_CLOSED])
+    game.handle_key("char", "L")
+    check(doors[0].door == DOOR_LOCKED, "L tranca a porta do lado")
+
+    # minúsculas fazem o mesmo que maiúsculas
+    game = Game(77)
+    doors = place(game, [DOOR_LOCKED])
+    game.handle_key("char", "u")
+    check(doors[0].door == DOOR_OPEN, "u (minuscula) destranca tambem")
+
+    game = Game(77)
+    doors = place(game, [DOOR_CLOSED])
+    game.handle_key("char", "l")
+    check(doors[0].door == DOOR_LOCKED, "l (minuscula) tranca tambem")
+
+    game = Game(77)
+    doors = place(game, [DOOR_LOCKED])
+    game.handle_key("char", "b")
+    check(doors[0].brute == 1, "b (minuscula) forca tambem")
+
+    # porta aberta ao lado de uma trancada: U/B tem que achar a trancada
+    game = Game(2)
+    doors = place(game, [DOOR_CLOSED, DOOR_LOCKED])
+    if doors is not None and len(doors) >= 2:
+        game.handle_key("char", "U")
+        check(
+            any(d.door == DOOR_OPEN for d in doors),
+            "U acha a porta trancada mesmo com outra porta ao lado",
+        )
+        game2 = Game(2)
+        doors2 = place(game2, [DOOR_CLOSED, DOOR_LOCKED])
+        game2.handle_key("char", "B")
+        check(
+            any(d.brute >= 1 for d in doors2),
+            "B acha a porta trancada mesmo com outra porta ao lado",
+        )
+
+    # uso de item: so consumivel e usado, ferramenta nao e gasta
+    game = Game(1234)
+    game.player.inventory.append(Item("ampola"))
+    game.player.inventory.append(Item("ruler"))
+    game.handle_key("char", "I")
+    game.handle_key("char", "2")  # o RULER
+    game.handle_key("char", "u")
+    check(
+        any(i.name == "RULER" for i in game.player.inventory),
+        "usar o RULER nao consome o item",
+    )
+    game.handle_key("char", "I")
+    game.handle_key("char", "1")  # a AMPOLA
+    game.handle_key("char", "u")
+    check(
+        not any(i.name == "AMPOLA" for i in game.player.inventory),
+        "usar a AMPOLA consome o item",
+    )
+
+
+def test_arrow_only_movement() -> None:
+    print("\n== Setas ==")
+    game = Game(4242)
+    px, py = game.player.x, game.player.y
+    turns = game.turn
+
+    # WASD, hjkl e vi-keys deixaram de mover: as letras sao dos comandos.
+    for ch in "wasdhjklyubn":
+        game.handle_key("char", ch)
+    check(
+        (game.player.x, game.player.y) == (px, py),
+        "WASD/hjkl/vi-keys nao movem mais o jogador",
+    )
+    check(game.turn == turns, "letras de movimento nao gastam turno")
+
+    # Ja as setas movem.
+    key_for = {(0, -1): "up", (0, 1): "down", (-1, 0): "left", (1, 0): "right"}
+    moved = False
+    for (dx, dy), kind in key_for.items():
+        nx, ny = px + dx, py + dy
+        if not game.level.in_bounds(nx, ny):
+            continue
+        if (nx, ny) == game.level.stairs_down:
+            continue
+        if game.level.monster_at(nx, ny) is not None:
+            continue
+        tile = game.level.tile(nx, ny)
+        if tile is None or tile.blocks() or tile.kind != "floor":
+            continue
+        game.handle_key(kind, "")
+        moved = (game.player.x, game.player.y) == (nx, ny)
+        break
+    check(moved, "as setas do teclado movem o jogador")
+
+    # O RULER tambem escolhe a direcao com as setas.
+    game.begin_measure()
+    check(game.mode == "prompt", "M abre prompt do RULER")
+    game.handle_key("up", "")
+    check(game.mode == "play", "seta fecha o prompt do RULER")
+    check(len(game.beam) > 0, "RULER desenhou o feixe na direcao da seta")
 
 
 def test_descend() -> None:
@@ -784,7 +918,7 @@ def test_smoke_loop() -> None:
             super().__init__(100, 30)
             self.script = [
                 ("char", "n"),
-                ("char", "h"), ("char", "j"), ("char", "k"), ("char", "l"),
+                ("left", ""), ("down", ""), ("up", ""), ("right", ""),
                 ("char", "S"), ("char", "G"), ("char", "."),
                 ("char", "?"), ("char", " "),
                 ("char", "i"), ("char", " "),
@@ -911,6 +1045,8 @@ def test_visual_cleanup() -> None:
 def main() -> int:
     test_generation()
     test_commands()
+    test_arrow_only_movement()
+    test_door_commands()
     test_descend()
     test_reproducibility()
     test_render()
