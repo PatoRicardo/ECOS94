@@ -8,6 +8,7 @@
 import { play, setMuted, unlock } from "./audio.js";
 import { build_context, context_subtitle } from "./context.js";
 import { Game } from "./game.js";
+import { PROLOGUE, prologuePage } from "./lore.js";
 import { Renderer } from "./renderer.js";
 import { random_seed } from "./rng.js";
 import { PHOSPHOR_CYCLE, setMode } from "./theme.js";
@@ -144,7 +145,44 @@ export const app = {
       this.startRun(urlSeed);
     } else {
       this.toTitle();
+      this.showPrologue(0);
     }
+  },
+
+  // ------------------------------------------------------------- prologo
+  /**
+   * Abertura narrativa. O menu (H) reabre sempre do começo.
+   * Fecha no ESC ou em SKIP, caindo no menu de titulo.
+   */
+  showPrologue(index = 0) {
+    const page = prologuePage(index);
+    if (!page) {
+      this.toTitle();
+      return;
+    }
+    const last = index === PROLOGUE.length - 1;
+    ui.openContent({
+      title: page.title,
+      subtitle: page.subtitle,
+      body: page.body,
+      wide: true,
+      actions: [
+        {
+          label: last ? "GO DOWN" : "NEXT",
+          detail: last ? "THE WELL IS OPEN" : "NEXT PAGE",
+          key: "ENTER",
+          tone: "green",
+          primary: true,
+          onSelect: () => this.showPrologue(index + 1),
+        },
+        {
+          label: "SKIP",
+          detail: "BACK TO THE TITLE",
+          key: "ESC",
+          onSelect: () => this.toTitle(),
+        },
+      ],
+    });
   },
 
   // -------------------------------------------------------------- titulo
@@ -191,6 +229,12 @@ export const app = {
           this.cycleOption("sound");
           this.buildTitleMenu();
         },
+      },
+      {
+        key: "H",
+        label: "LORE",
+        meta: "A HISTÓRIA DO SUBSOLO",
+        run: () => this.showPrologue(0),
       },
       {
         key: "?",
@@ -453,6 +497,7 @@ export const app = {
       return;
     }
     if (event.key === "?") ui.openHelp();
+    if (key === "h") this.showPrologue(0);
   },
 
   gameKey(event) {

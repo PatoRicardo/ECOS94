@@ -14,6 +14,7 @@ import { Game } from "../js/game.js";
 import { DOOR_CLOSED, DOOR_LOCKED, DOOR_OPEN, MAX_DEPTH } from "../js/data.js";
 import { generate } from "../js/dungeon.js";
 import { Item } from "../js/entities.js";
+import { PROLOGUE, prologuePage } from "../js/lore.js";
 import { Rng } from "../js/rng.js";
 
 setMuted(true);
@@ -626,6 +627,22 @@ function test_bot() {
   );
 }
 
+// -------------------------------------------------------------------- lore
+function test_lore() {
+  console.log("\n== Abertura narrativa ==");
+  check(PROLOGUE.length === 3, "abertura tem tres paginas");
+  check(
+    PROLOGUE.every((page) => page.title && page.subtitle && page.body.length > 120),
+    "toda pagina tem titulo, subtitulo e corpo"
+  );
+  check(
+    PROLOGUE.every((page) => !/undefined|\[object/.test(page.body)),
+    "nenhuma pagina tem texto vazado"
+  );
+  check(prologuePage(0) === PROLOGUE[0], "prologuePage devolve a primeira pagina");
+  check(prologuePage(PROLOGUE.length) === null, "prologuePage acaba no fim");
+}
+
 // -------------------------------------------------------------------- main
 console.log("ECOS '94 WEB — simulador headless");
 
@@ -635,6 +652,7 @@ test_door_commands();
 test_arrow_only_movement();
 test_descend();
 test_reproducibility();
+test_lore();
 test_fuzz(Number(process.argv[2] || 2024));
 test_bot();
 

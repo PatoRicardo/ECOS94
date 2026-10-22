@@ -80,7 +80,11 @@ O `run.bat` continua sendo só para rodar localmente; o Pages não precisa dele.
 ## Seed e opções
 
 - A seed é o save: mesma seed, mesmo mapa, mesmo loot, mesma IA.
-- `?seed=123` na URL inicia direto naquela seed.
+- `?seed=123` na URL inicia direto naquela seed (sem abertura).
+- A primeira visita mostra a abertura narrativa em três páginas: `Enter`
+  avança, `Esc` pula. O item **LORE** no menu (tecla `H`) reabre do começo.
+  O texto completo está em
+  [`../docs/LORE-ATUALIZADA.md`](../docs/LORE-ATUALIZADA.md).
 - Título e menu de pausa alternam **VGA · VERDE · ÂMBAR · BRANCO**,
   scanlines e som. As preferências ficam no `localStorage`.
 - Todo som é sintetizado com WebAudio (sem arquivos), liberado no primeiro

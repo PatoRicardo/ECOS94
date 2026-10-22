@@ -32,8 +32,14 @@ O jogo usa a tela inteira (buffer alternativo do console) e lê o teclado sem es
 | `--seed N` | Fixa a seed da run: mesmo mapa, mesmo loot, mesma IA |
 | `--cp437` | Usa a página de código 437 do DOS (glifos de caixa desenhada) |
 | `--mute` | Desliga o áudio |
+| `--skip-prologue` | Pula a abertura narrativa de três telas |
 
 A paleta e o modo fósforo também podem ser alternados **em tempo real**, pelo menu de título.
+
+Na primeira tela, o jogo mostra uma abertura narrativa de três páginas (qualquer
+tecla avança, `Esc` pula). A história completa do subsolo está em
+[`docs/LORE-ATUALIZADA.md`](docs/LORE-ATUALIZADA.md); a primeira versão fica
+preservada em [`docs/LORE.md`](docs/LORE.md).
 
 ### Versão web (navegador)
 
@@ -113,6 +119,8 @@ ECOS94/
 ├── web/                  porte jogável no navegador (ver web/README.md)
 └── docs/
     ├── ECOS94.docx              manual do jogo
+    ├── LORE-ATUALIZADA.md       a história do subsolo (versão de referência)
+    ├── LORE.md                  primeira versão da lore (arquivo preservado)
     └── RELATORIO-DE-TRABALHO.docx  relatório de trabalho
 ```
 

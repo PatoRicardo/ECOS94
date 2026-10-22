@@ -84,6 +84,19 @@ def sync_size(term: Terminal, renderer: Renderer) -> None:
         renderer.invalidate()
 
 
+def prologue(term: Terminal, renderer: Renderer) -> None:
+    """Abertura narrativa. Qualquer tecla avanca, ESC pula o resto."""
+    page = 0
+    while page < len(view.PROLOGUE):
+        sync_size(term, renderer)
+        view.draw_prologue(renderer, term.width, term.height, page)
+        renderer.flush()
+        kind, _ = term.read_key()
+        if kind in ("escape", "ctrl_c"):
+            return
+        page += 1
+
+
 def title_loop(term: Terminal, renderer: Renderer, options) -> str:
     """Menu de titulo. Retorna 'new' | 'seed' | 'quit'."""
     while True:
@@ -217,6 +230,9 @@ def main(argv=None) -> int:
     parser.add_argument("--seed", type=int, default=None, help="seed da run")
     parser.add_argument("--cp437", action="store_true", help="usa a pagina de codigo 437 do DOS")
     parser.add_argument("--mute", action="store_true", help="desliga o som")
+    parser.add_argument(
+        "--skip-prologue", action="store_true", help="pula a abertura narrativa"
+    )
     args = parser.parse_args(argv)
 
     if args.cp437:
@@ -240,6 +256,8 @@ def main(argv=None) -> int:
     try:
         term.enter()
         boot(term, renderer)
+        if not args.skip_prologue:
+            prologue(term, renderer)
         while True:
             action = title_loop(term, renderer, options)
             if action == "quit":

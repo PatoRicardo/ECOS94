@@ -307,6 +307,81 @@ def draw_inventory(r, game, width: int, height: int) -> None:
     draw_panel(r, x, y, w, h, "INVENTORY", lines)
 
 
+# ------------------------------------------------------------------- prologo
+# Abertura narrativa em tres paginas. Tudo aqui e ficcao de moldura: nenhuma
+# regra do jogo depende deste texto (ver docs/LORE-ATUALIZADA.md).
+PROLOGUE = (
+    (
+        "SUBSOLO 7  //  ARQUIVO MORTO",
+        (
+            ("", WHITE),
+            ("THE ARCHIVE WAS NEVER LIT.", WHITE),
+            ("", WHITE),
+            ("NOT TO SAVE MONEY. LIGHT ERASES WHAT THE", LGRAY),
+            ("STONE REMEMBERS.", LGRAY),
+            ("", WHITE),
+            ("THEY WROTE WITH SOUND AND READ WITH SOUND,", LGRAY),
+            ("AND NAMED THE SYSTEM ECOS BECAUSE THAT IS", LGRAY),
+            ("WHAT THE WELL GAVE BACK.", LGRAY),
+            ("", WHITE),
+            ("EVERYTHING YOU HEAR, IT HEARS TOO.", YELLOW),
+        ),
+    ),
+    (
+        "INVENTARIO DE CAMPO",
+        (
+            ("", WHITE),
+            ("SIX SUBSYSTEMS. ONE LAW.", WHITE),
+            ("", WHITE),
+            ("SONAR ARRAY      A CIRCLE OF LIGHT. A PRICE.", LGRAY),
+            ("RULER OPTICS     A STRAIGHT LINE. ALMOST FREE.", LGRAY),
+            ("LOAD SENSORS     WEIGHT IS NOISE.", LGRAY),
+            ("PASSWORD VAULT   SLATES IN HER HANDWRITING.", LGRAY),
+            ("LOCK CONTROL     A DOOR IS A PROMISE.", LGRAY),
+            ("RESET VECTOR     IT REBUILDS. IT REMEMBERS.", LGRAY),
+            ("", WHITE),
+            ("TO BE HEARD IS TO BE REMEMBERED.", YELLOW),
+            ("TO BE REMEMBERED IS TO BE EATEN.", YELLOW),
+        ),
+    ),
+    (
+        "LOG  //  TEC. 04",
+        (
+            ("", WHITE),
+            ("14 MAR 1994, 23:41. SECTOR 7 LOOPS.", LGRAY),
+            ("", WHITE),
+            ("FOUR WEEKS OF THE SAME CORRIDOR.", LGRAY),
+            ("IT IS NOT STUCK. IT IS TRYING TO REMEMBER", LGRAY),
+            ("SOMEONE.", LGRAY),
+            ("", WHITE),
+            ("I PRESSED RESET.", WHITE),
+            ("", WHITE),
+            ("THE SECTOR CAME BACK IN 40 SECONDS. SO DID", LGRAY),
+            ("THE ROUTINE THAT REBUILT IT.", LGRAY),
+            ("", WHITE),
+            ("THE COMPANY SEALED THE WELL IN NINE WEEKS.", LGRAY),
+            ("ON THE BLUEPRINT, SECTOR 10 IS A RECTANGLE", LGRAY),
+            ("WITH ONE WORD IN IT: VOID.", LGRAY),
+            ("", WHITE),
+            ("YOU ARE THE LAST BOOT. GO DOWN.", YELLOW),
+        ),
+    ),
+)
+
+
+def draw_prologue(r, width: int, height: int, page: int) -> None:
+    """Desenha uma pagina da abertura narrativa."""
+    title, lines = PROLOGUE[page]
+    w = min(width - 4, 74)
+    h = min(len(lines) + 2, max(4, height - 3))
+    x = max(0, (width - w) // 2)
+    y = max(1, (height - h) // 2 - 1)
+    r.clear(WHITE, BLACK)
+    draw_panel(r, x, y, w, h, title, lines)
+    footer = f"ANY KEY NEXT    ESC SKIP    {page + 1}/{len(PROLOGUE)}"
+    r.put_text(max(0, (width - len(footer)) // 2), height - 2, footer, DGRAY)
+
+
 def draw_title(r, width: int, height: int, options) -> None:
     r.clear(WHITE, BLACK)
     logo = big_text("ECOS '94")

@@ -892,6 +892,44 @@ button.row-item:focus-visible {
   margin: 0 2px 2px 0;
 }
 
+/* ------------------------------------------------------------------ lore */
+.lore p {
+  margin: 4px 0 10px;
+  color: var(--ink-dim);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.lore .lore-lead {
+  margin-top: 8px;
+  color: var(--ink);
+  letter-spacing: 0.12em;
+}
+
+.lore .lore-law {
+  margin-top: 14px;
+  color: var(--yellow);
+  letter-spacing: 0.08em;
+}
+
+.lore .lore-systems {
+  margin: 8px 0 12px;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  font-size: 11px;
+}
+
+.lore .lore-systems dt {
+  color: var(--green);
+  letter-spacing: 0.1em;
+}
+
+.lore .lore-systems dd {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
 .history {
   margin: 6px 0;
   padding-left: 22px;

@@ -908,6 +908,45 @@ def test_render() -> None:
     check("NZ" in row and "AL" in row, "HUD compacto mostra ruido e ALERT")
 
 
+def test_prologue() -> None:
+    """A abertura narrativa desenha as paginas e respeita o ESC."""
+    print("\n== Prologo ==")
+    from ecos import main as M
+    from ecos import view
+    from ecos.render import Renderer
+
+    class KeyTerm(FakeTerminal):
+        def __init__(self, keys) -> None:
+            super().__init__(80, 25)
+            self.keys = list(keys)
+
+        def read_key(self):
+            return self.keys.pop(0) if self.keys else ("escape", "")
+
+        def enter(self) -> None:
+            pass
+
+        def leave(self) -> None:
+            pass
+
+        def clear(self) -> None:
+            pass
+
+    # qualquer tecla avanca; as tres paginas aparecem
+    term = KeyTerm([("enter", "")] * len(view.PROLOGUE))
+    M.prologue(term, Renderer(term, truecolor=False))
+    out = "".join(term.chunks)
+    for page in range(1, len(view.PROLOGUE) + 1):
+        check(f"{page}/{len(view.PROLOGUE)}" in out, f"prologo desenha a pagina {page}")
+
+    # ESC na primeira pagina pula o resto
+    term = KeyTerm([("escape", "")])
+    M.prologue(term, Renderer(term, truecolor=False))
+    out = "".join(term.chunks)
+    check("1/" in out, "prologo abre na primeira pagina")
+    check(f"2/{len(view.PROLOGUE)}" not in out, "ESC pula o prologo")
+
+
 def test_smoke_loop() -> None:
     """Roda o loop principal completo (titulo + jogo) com terminal falso."""
     print("\n== Loop principal ==")
@@ -946,7 +985,7 @@ def test_smoke_loop() -> None:
     original = M.Terminal
     M.Terminal = FakeTerm
     try:
-        code = M.main(["--mute", "--seed", "4242"])
+        code = M.main(["--mute", "--seed", "4242", "--skip-prologue"])
     except Exception as exc:  # noqa: BLE001 - o teste precisa reportar
         code = -1
         print(f"       {type(exc).__name__}: {exc}")
@@ -1051,6 +1090,7 @@ def main() -> int:
     test_reproducibility()
     test_render()
     test_visual_cleanup()
+    test_prologue()
     test_smoke_loop()
     test_bot()
     test_fuzz(1234)
