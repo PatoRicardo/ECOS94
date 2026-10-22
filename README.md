@@ -107,7 +107,7 @@ ECOS94/
 
 ## Validação
 
-O jogo roda inteiro sem terminal. A suíte abaixo exercita geração, comandos, descida, reprodutibilidade por seed, render em todos os modos de cor, compatibilidade CP437, o loop principal completo e um bot que joga sozinho:
+O jogo roda inteiro sem terminal. A suíte abaixo exercita geração, comandos, descida, reprodutibilidade por seed, render em todos os modos de cor, compatibilidade CP437, limpeza visual (RESET e fechamento de painel), o loop principal completo e um bot que joga sozinho:
 
 ```bat
 python tools/simulate.py
@@ -132,3 +132,10 @@ O bot da suíte é um jogador **mediano**: ele desce direto, briga com tudo que 
 - **Três níveis de memória por tile**: desconhecido, lembrado (cinza) e iluminado (branco). Lembrar de uma sala não é ver o que está nela agora.
 - **A seed é o save**: mesma seed, mesmo mapa, mesmo loot, mesmo comportamento de IA. Dá para compartilhar um mapa como um "cruzado" de TAB-como-tipo.
 - **O chefe é o teste do build**: em duelo 1x1, com a DAGGER é impossível (0%), com CLEAVER + PLACA você vence 84% das vezes e com CLEAVER + PLACA + o ROM PARITY é garantido (100%). No setor 10 tem 2 ou 3 RAT GIANTS junto, então a vida extra importa.
+- **A tela é limpa a cada quadro**: um RESET apaga o setor anterior de verdade (você fica no escuro, só enxergando o pedaço ao redor) e fechar um painel não deixa sombra no mapa.
+
+---
+
+## Licença
+
+MIT — veja o arquivo [LICENSE](LICENSE).

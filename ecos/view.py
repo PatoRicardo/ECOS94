@@ -14,6 +14,7 @@ from .render import (
     G_PLAYER,
     G_STAIRS_DOWN,
     G_STAIRS_UP,
+    G_UNKNOWN,
     G_WALL,
     GRAY_DIV,
     GREEN,
@@ -30,6 +31,9 @@ from .render import (
 
 # caixa de dialogo
 BOX_TL, BOX_TR, BOX_BL, BOX_BR = "\u250c", "\u2510", "\u2514", "\u2518"
+
+# linha inicial do mapa: 0-1 sao o HUD, 2 e o divisor
+MAP_TOP = 3
 BOX_H, BOX_V = "\u2500", "\u2502"
 
 
@@ -52,10 +56,19 @@ def camera(game, vw: int, vh: int) -> tuple[int, int]:
     return vx, vy
 
 
-def draw_map(r, game, vx: int, vy: int, vw: int, vh: int) -> None:
+def draw_map(r, game, vx: int, vy: int, vw: int, vh: int, top: int = MAP_TOP) -> None:
+    """Desenha o mapa entre as linhas `top` e `top + vh - 1` da tela.
+
+    A regiao e limpa antes de desenhar. Sem isso, tudo que nao e desenhado
+    (tiles ainda desconhecidos, setor novo depois de um RESET, sombra de
+    um painel fechado) ficaria congelado na tela.
+    """
     level = game.level
     player = game.player
     beam = set(game.beam) if game.turn - game.beam_turn <= 4 else set()
+
+    # limpa a area do mapa: tiles desconhecidos ficam vazios
+    r.fill(0, top, vw, vh, G_UNKNOWN, WHITE, BLACK)
 
     for row in range(vh):
         y = vy + row
@@ -71,26 +84,26 @@ def draw_map(r, game, vx: int, vy: int, vw: int, vh: int) -> None:
             tile = level.tiles[y][x]
             lit = known == 2
             if tile.kind == "wall":
-                r.put(col, row, G_WALL, WHITE if lit else DGRAY)
+                r.put(col, top + row, G_WALL, WHITE if lit else DGRAY)
             elif tile.kind == "door":
                 if tile.door == DOOR_LOCKED:
-                    r.put(col, row, "+", LRED)
+                    r.put(col, top + row, "+", LRED)
                 elif tile.door == DOOR_CLOSED:
-                    r.put(col, row, "+", BROWN)
+                    r.put(col, top + row, "+", BROWN)
                 else:
-                    r.put(col, row, "+", GREEN)
+                    r.put(col, top + row, "+", GREEN)
             else:
-                r.put(col, row, G_FLOOR, WHITE if lit else DGRAY)
+                r.put(col, top + row, G_FLOOR, WHITE if lit else DGRAY)
             if (x, y) in beam:
-                r.put(col, row, "\u2500", LCYAN)
+                r.put(col, top + row, "\u2500", LCYAN)
 
     # escadas
     sx, sy = level.stairs_up
     if level.known[sy][sx] and 0 <= sx - vx < vw and 0 <= sy - vy < vh:
-        r.put(sx - vx, sy - vy, G_STAIRS_UP, LGRAY)
+        r.put(sx - vx, top + sy - vy, G_STAIRS_UP, LGRAY)
     sx, sy = level.stairs_down
     if level.known[sy][sx] and 0 <= sx - vx < vw and 0 <= sy - vy < vh:
-        r.put(sx - vx, sy - vy, G_STAIRS_DOWN, YELLOW)
+        r.put(sx - vx, top + sy - vy, G_STAIRS_DOWN, YELLOW)
 
     # itens lembrados
     for item in level.items:
@@ -98,7 +111,7 @@ def draw_map(r, game, vx: int, vy: int, vw: int, vh: int) -> None:
             continue
         if level.known[item.y][item.x] == 0:
             continue
-        r.put(item.x - vx, item.y - vy, item.glyph, item.color)
+        r.put(item.x - vx, top + item.y - vy, item.glyph, item.color)
 
     # ROMs
     for rom in level.roms_on_floor:
@@ -106,7 +119,7 @@ def draw_map(r, game, vx: int, vy: int, vw: int, vh: int) -> None:
             continue
         if level.known[rom.y][rom.x] == 0:
             continue
-        r.put(rom.x - vx, rom.y - vy, "R", YELLOW)
+        r.put(rom.x - vx, top + rom.y - vy, "R", YELLOW)
 
     # monstros: so os que estao iluminados agora
     for monster in level.monsters:
@@ -116,16 +129,19 @@ def draw_map(r, game, vx: int, vy: int, vw: int, vh: int) -> None:
             continue
         if level.known[monster.y][monster.x] != 2:
             continue
-        r.put(monster.x - vx, monster.y - vy, monster.glyph, monster.color)
+        r.put(monster.x - vx, top + monster.y - vy, monster.glyph, monster.color)
 
     # jogador
-    r.put(player.x - vx, player.y - vy, G_PLAYER, WHITE)
+    r.put(player.x - vx, top + player.y - vy, G_PLAYER, WHITE)
 
 
 def draw_hud(r, game, width: int) -> None:
     player = game.player
     load_ratio = player.load_ratio
     noise_ratio = player.noise / 100.0
+
+    # limpa as tres linhas do HUD antes de escrever nelas
+    r.fill(0, 0, width, MAP_TOP, G_UNKNOWN, WHITE, BLACK)
 
     hp_color = LGREEN if player.hp > 5 else LRED
     noise_color = LGREEN if noise_ratio < 0.4 else (YELLOW if noise_ratio < 0.8 else LRED)
@@ -206,6 +222,8 @@ def draw_measure_hint(r, game, width: int, height: int) -> None:
 
 
 def draw_log(r, game, width: int, height: int) -> None:
+    # limpa as duas linhas de log: mensagens antigas podem ser mais longas
+    r.fill(0, height - 2, width, 2, G_UNKNOWN, WHITE, BLACK)
     r.put_text(0, height - 3, GRAY_DIV * width, DGRAY)
     messages = game.messages[-2:]
     for i, (text, color) in enumerate(messages):

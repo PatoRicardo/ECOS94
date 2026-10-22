@@ -115,6 +115,68 @@ def title_loop(term: Terminal, renderer: Renderer, options) -> str:
             return "quit"
 
 
+def draw_panels(renderer, game, width: int, height: int) -> None:
+    """Desenha o painel aberto no momento (ajuda, inventario, listas)."""
+    prompt = game.prompt or {}
+    if game.mode == "help":
+        view.draw_help(renderer, width, height)
+        return
+    if game.mode != "prompt":
+        return
+    action = prompt.get("action")
+    if prompt.get("kind") == "measure":
+        view.draw_measure_hint(renderer, game, width, height)
+    elif action == "menu":
+        view.draw_inventory(renderer, game, width, height)
+    elif action == "itemmenu":
+        view.draw_inventory(renderer, game, width, height)
+    elif action == "drop":
+        entries = [
+            (f"  {i + 1}) {item.name} ({item.kg} KG)", item.color)
+            for i, item in enumerate(prompt.get("items", [])[:9])
+        ]
+        view.draw_list_panel(
+            renderer, width, height, entries, "DROP WHAT?", "NUMBER TO DROP  ESC TO CANCEL"
+        )
+    elif action == "use":
+        entries = [
+            (f"  {i + 1}) {item.name} ({item.kg} KG)", item.color)
+            for i, item in enumerate(prompt.get("items", [])[:9])
+        ]
+        view.draw_list_panel(
+            renderer, width, height, entries, "USE WHAT?", "NUMBER TO USE  ESC TO CANCEL"
+        )
+    elif action == "rom":
+        entries = [
+            (f"  {i + 1}) {rom.name} - {rom.desc} ({rom.kg} KG)", YELLOW)
+            for i, rom in enumerate(prompt.get("items", [])[:9])
+        ]
+        view.draw_list_panel(
+            renderer,
+            width,
+            height,
+            entries,
+            "OVERWRITE WHICH ROM?",
+            "NUMBER TO OVERWRITE  ESC TO CANCEL",
+        )
+
+
+def draw_scene(renderer, game, width: int, height: int) -> None:
+    """Desenha um quadro completo: HUD, mapa, log e paineis.
+
+    O quadro comeca limpo: e o que garante que o setor novo de um RESET
+    e o fundo de um painel fechado nao fiquem presos na tela.
+    """
+    renderer.clear()
+    view.draw_hud(renderer, game, width)
+    vw = width
+    vh = max(3, height - 6)
+    vx, vy = view.camera(game, vw, vh)
+    view.draw_map(renderer, game, vx, vy, vw, vh, view.MAP_TOP)
+    view.draw_log(renderer, game, width, height)
+    draw_panels(renderer, game, width, height)
+
+
 def play_run(term: Terminal, renderer: Renderer, seed: int, options) -> str:
     game = Game(seed, options.get("phosphor"), options.get("scanlines", True))
     renderer.set_mode(options.get("phosphor"), options.get("scanlines", True))
@@ -123,53 +185,7 @@ def play_run(term: Terminal, renderer: Renderer, seed: int, options) -> str:
         sync_size(term, renderer)
         width = term.width
         height = term.height
-        view.draw_hud(renderer, game, width)
-        vw = width
-        vh = max(3, height - 6)
-        vx, vy = view.camera(game, vw, vh)
-        view.draw_map(renderer, game, vx, vy, vw, vh)
-        view.draw_log(renderer, game, width, height)
-
-        prompt = game.prompt or {}
-        if game.mode == "help":
-            view.draw_help(renderer, width, height)
-        elif game.mode == "prompt":
-            action = prompt.get("action")
-            if prompt.get("kind") == "measure":
-                view.draw_measure_hint(renderer, game, width, height)
-            elif action == "menu":
-                view.draw_inventory(renderer, game, width, height)
-            elif action == "itemmenu":
-                view.draw_inventory(renderer, game, width, height)
-            elif action == "drop":
-                entries = [
-                    (f"  {i + 1}) {item.name} ({item.kg} KG)", item.color)
-                    for i, item in enumerate(prompt.get("items", [])[:9])
-                ]
-                view.draw_list_panel(
-                    renderer, width, height, entries, "DROP WHAT?", "NUMBER TO DROP  ESC TO CANCEL"
-                )
-            elif action == "use":
-                entries = [
-                    (f"  {i + 1}) {item.name} ({item.kg} KG)", item.color)
-                    for i, item in enumerate(prompt.get("items", [])[:9])
-                ]
-                view.draw_list_panel(
-                    renderer, width, height, entries, "USE WHAT?", "NUMBER TO USE  ESC TO CANCEL"
-                )
-            elif action == "rom":
-                entries = [
-                    (f"  {i + 1}) {rom.name} - {rom.desc} ({rom.kg} KG)", YELLOW)
-                    for i, rom in enumerate(prompt.get("items", [])[:9])
-                ]
-                view.draw_list_panel(
-                    renderer,
-                    width,
-                    height,
-                    entries,
-                    "OVERWRITE WHICH ROM?",
-                    "NUMBER TO OVERWRITE  ESC TO CANCEL",
-                )
+        draw_scene(renderer, game, width, height)
 
         renderer.flush()
 

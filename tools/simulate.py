@@ -821,12 +821,100 @@ def test_smoke_loop() -> None:
     check(code == 0, "loop principal (titulo + jogo) sai com codigo 0")
 
 
+def test_visual_cleanup() -> None:
+    """Regressao dos bugs visuais: RESET limpa o mapa, painel fechado some."""
+    print("\n== Limpeza visual ==")
+    import re as _re
+
+    from ecos import main as M
+    from ecos import view
+    from ecos.render import Renderer
+
+    ansi = _re.compile(r"\x1b\[[0-9;]*m")
+    term = FakeTerminal(100, 30)
+    renderer = Renderer(term, truecolor=True)
+    game = Game(2024)
+
+    def scene() -> list[str]:
+        M.draw_scene(renderer, game, term.width, term.height)
+        return [ansi.sub("", renderer._row_string(y)) for y in range(term.height)]
+
+    def map_area(lines: list[str]) -> str:
+        return "".join(lines[view.MAP_TOP : term.height - 3])
+
+    # --- bug 1: RESET tem que apagar o setor antigo da tela
+    level = game.level
+    for y in range(level.h):
+        for x in range(level.w):
+            level.known[y][x] = 1
+    before = map_area(scene())
+    check(
+        any(ch in before for ch in "\u2588\u00b7+"),
+        "setor explorado aparece na tela antes do RESET",
+    )
+
+    game.reset_sector()
+    after = map_area(scene())
+    check("@" in after, "jogador continua visivel depois do RESET")
+
+    # nenhum desenho pode sobrar de um tile que o setor novo NAO conhece
+    level = game.level
+    vx, vy = view.camera(game, term.width, term.height - 6)
+    allowed = {
+        (x - vx, y - vy)
+        for y in range(level.h)
+        for x in range(level.w)
+        if level.known[y][x]
+    }
+    allowed.add((game.player.x - vx, game.player.y - vy))
+    ghosts = []
+    for row, line in enumerate(scene()[view.MAP_TOP : term.height - 3]):
+        for col, ch in enumerate(line):
+            if ch != " " and (col, row) not in allowed:
+                ghosts.append((col, row, ch))
+    check(
+        not ghosts,
+        f"RESET apaga o setor antigo (sem desenhos fantasma: {ghosts[:4]})",
+    )
+    check(
+        len(after) - after.count(" ") < len(before) - before.count(" "),
+        "RESET esvazia a tela (o setor novo comeca no escuro)",
+    )
+
+    # --- bug 2: painel fechado tem que sumir da tela
+    game.begin_inventory()
+    opened = map_area(scene())
+    check("\u2502" in opened, "painel de inventario abre")
+
+    game.handle_key("escape", "")
+    closed = map_area(scene())
+    check("\u2502" not in closed, "painel de inventario some ao fechar")
+    check("\u2500" not in closed, "borda do painel some ao fechar")
+
+    game.handle_key("char", "?")
+    help_open = map_area(scene())
+    check("\u2502" in help_open, "painel de ajuda abre")
+
+    game.handle_key("char", " ")
+    help_closed = map_area(scene())
+    check("\u2502" not in help_closed, "painel de ajuda some ao fechar")
+
+    # o mapa nao pode invadir as linhas do HUD
+    game.player.hp = 28
+    lines = scene()
+    check(
+        lines[0].startswith("ECOS '94"),
+        "linha 0 continua sendo o HUD (o mapa nao invade)",
+    )
+
+
 def main() -> int:
     test_generation()
     test_commands()
     test_descend()
     test_reproducibility()
     test_render()
+    test_visual_cleanup()
     test_smoke_loop()
     test_bot()
     test_fuzz(1234)
