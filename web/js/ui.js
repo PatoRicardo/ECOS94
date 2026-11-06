@@ -1,6 +1,6 @@
 /** Camada de interface: HUD, log, paineis, inventario e botoes. */
 
-import { MAX_DEPTH } from "./data.js";
+import { MAX_DEPTH, MAX_PLAYERS } from "./data.js";
 import { C, color } from "./theme.js";
 
 const $ = (selector) => document.querySelector(selector);
@@ -69,6 +69,7 @@ export const ui = {
       "hud-slots",
       "bar-load",
       "bar-noise",
+      "party",
       "log",
       "hint",
       "stage",
@@ -141,6 +142,7 @@ export const ui = {
     refs["hud-roms"].title = player.roms.map((rom) => rom.desc).join(" · ");
 
     this.renderLog(game);
+    this.renderParty(game);
     this.setHint(
       game.mode === "measure"
         ? "RULER: ESCOLHA UMA DIREÇÃO · ESC CANCELA"
@@ -161,6 +163,37 @@ export const ui = {
     }
     // A mensagem mais nova sempre visivel.
     refs.log.scrollTop = refs.log.scrollHeight;
+  },
+
+  renderParty(game) {
+    const node = refs.party;
+    if (!node) return;
+    const players = game.players || [];
+    if (players.length < 2) {
+      node.classList.add("hidden");
+      node.innerHTML = "";
+      return;
+    }
+    node.classList.remove("hidden");
+    node.innerHTML = players
+      .map((player) => {
+        const local = player.id === game.local_id;
+        const state = player.dead
+          ? "dead"
+          : player.acted
+            ? "ready"
+            : player.connected
+              ? "wait"
+              : "lost";
+        const label = player.dead ? "DEAD" : player.acted ? "OK" : "…";
+        return `<span class="party-member ${state}${local ? " local" : ""}" title="${esc(player.name)}">
+          <b style="color:${color(player.color)}">${esc(player.glyph || "?")}</b>
+          <span class="pm-name">${esc(player.name)}</span>
+          <span class="pm-hp">${Math.max(0, player.hp)}/${player.max_hp}</span>
+          <span class="pm-state">${label}</span>
+        </span>`;
+      })
+      .join("");
   },
 
   setHint(text) {
@@ -221,7 +254,7 @@ export const ui = {
 
       button.addEventListener("click", () => {
         if (button.disabled) return;
-        this.close();
+        this.close(true);
         if (action.onSelect) action.onSelect();
       });
       refs["overlay-actions"].appendChild(button);
@@ -443,6 +476,84 @@ export const ui = {
   },
 
   // ------------------------------------------------------------------ telas
+  openLobby({ code, link, players = [], max = MAX_PLAYERS, host = false, onStart, onCopy, onClose }) {
+    const rows = [];
+    for (let index = 0; index < max; index += 1) {
+      const player = players[index];
+      if (player) {
+        rows.push(`<li class="lobby-player">
+          <span class="lp-key">${index + 1}</span>
+          <span class="lp-name">${esc(player.name)}</span>
+          <span class="lp-tag">${index === 0 ? "HOST" : "LINKED"}</span>
+        </li>`);
+      } else {
+        rows.push(`<li class="lobby-player empty">
+          <span class="lp-key">${index + 1}</span>
+          <span class="lp-name">(OPEN SLOT)</span>
+          <span class="lp-tag">—</span>
+        </li>`);
+      }
+    }
+
+    const body = `
+      <div class="lobby">
+        <div class="lobby-code">
+          <span>ROOM CODE</span>
+          <b>${esc(code || "----")}</b>
+        </div>
+        <p class="lobby-link">${esc(link || "")}</p>
+        <div class="section">
+          <h3>OPERATORS <small>${players.length}/${max}</small></h3>
+          <ul class="lobby-list">${rows.join("")}</ul>
+        </div>
+        <p class="muted">P2P VIA PEERJS. SEM CONTA, SEM BANCO, SEM SERVIDOR PRÓPRIO. A DESCOBERTA DO MAPA É INDIVIDUAL.</p>
+      </div>`;
+
+    const actions = [];
+    if (host) {
+      actions.push({
+        label: players.length > 1 ? "START CO-OP" : "START ALONE",
+        detail:
+          players.length > 1
+            ? `${players.length} OPERADORES · O HOST É AUTORITATIVO`
+            : "VOCÊ PODE COMEÇAR E DEIXAR OS OUTROS ENTRAREM DEPOIS",
+        tone: "green",
+        primary: true,
+        onSelect: onStart,
+      });
+    } else {
+      actions.push({
+        label: "WAITING FOR HOST…",
+        detail: "A RUN COMEÇA QUANDO O HOST INICIAR",
+        tone: "plain",
+        disabled: true,
+        onSelect: () => {},
+      });
+    }
+    actions.push({
+      label: "COPY ROOM LINK",
+      detail: "ENVIE O LINK PARA OS OUTROS",
+      tone: "cyan",
+      onSelect: onCopy,
+    });
+    actions.push({
+      label: host ? "CLOSE ROOM" : "LEAVE ROOM",
+      detail: "SAIR DA SALA",
+      tone: "red",
+      danger: true,
+      onSelect: onClose,
+    });
+
+    this.openContent({
+      title: host ? "CO-OP LOBBY" : "CO-OP ROOM",
+      subtitle: `ROOM ${code || "----"} · PEERJS CLOUD`,
+      body,
+      actions,
+      wide: true,
+      locked: true,
+    });
+  },
+
   openHelp() {
     this.openContent({
       title: "ECOS '94 — HELP",
@@ -626,43 +737,82 @@ export const ui = {
   openGameOver(game, app) {
     const player = game.player;
     const victory = game.victory;
-    const body = `
-      <div class="stats big">
-        <div><span>SECTOR</span><b>${game.depth} / ${MAX_DEPTH}</b></div>
-        <div><span>TURNS</span><b>${player.turns}</b></div>
-        <div><span>KILLS</span><b>${player.kills}</b></div>
-        <div><span>PEAK NOISE</span><b>${player.peak_noise}</b></div>
-        <div><span>RESETS</span><b>${player.resets}</b></div>
-        <div><span>ALERT</span><b>${player.alert}</b></div>
-        <div><span>LOAD</span><b>${player.load} / ${player.capacity}</b></div>
-      </div>
-      <div class="section">
-        <h3>ROMS READ</h3>
-        <p>${player.roms.map((rom) => esc(rom.name)).join(", ") || "NONE"}</p>
-      </div>
-      <p class="seed-line">SEED <b>${game.seed}</b></p>`;
+    const coop = app.role !== "solo" || game.players.length > 1;
 
-    const actions = [
-      {
-        label: "NEW RUN",
-        detail: "NOVA SEED, NOVO SISTEMA",
-        tone: "green",
-        primary: true,
-        onSelect: () => app.startRun(null),
-      },
-      {
-        label: "RETRY THIS SEED",
-        detail: `SEED ${game.seed}`,
-        tone: "cyan",
-        onSelect: () => app.startRun(game.seed),
-      },
-      {
-        label: "TITLE",
-        detail: "VOLTAR AO MENU",
-        tone: "plain",
-        onSelect: () => app.toTitle(),
-      },
-    ];
+    let body;
+    if (coop) {
+      const rows = game.players
+        .map(
+          (member) => `<li class="lobby-player">
+            <span class="lp-key" style="color:${color(member.color)}">${esc(member.glyph)}</span>
+            <span class="lp-name">${esc(member.name)}</span>
+            <span class="lp-tag">${member.dead ? "DEAD" : "ALIVE"} · ${member.kills} K · ${member.turns} T</span>
+          </li>`
+        )
+        .join("");
+      body = `
+        <div class="stats big">
+          <div><span>SECTOR</span><b>${game.depth} / ${MAX_DEPTH}</b></div>
+          <div><span>TURNS</span><b>${game.turn}</b></div>
+          <div><span>YOUR KILLS</span><b>${player.kills}</b></div>
+          <div><span>PEAK NOISE</span><b>${player.peak_noise}</b></div>
+          <div><span>RESETS</span><b>${player.resets}</b></div>
+          <div><span>ALERT</span><b>${game.alert}</b></div>
+        </div>
+        <div class="section">
+          <h3>PARTY</h3>
+          <ul class="lobby-list">${rows}</ul>
+        </div>
+        <p class="seed-line">SEED <b>${game.seed}</b></p>`;
+    } else {
+      body = `
+        <div class="stats big">
+          <div><span>SECTOR</span><b>${game.depth} / ${MAX_DEPTH}</b></div>
+          <div><span>TURNS</span><b>${player.turns}</b></div>
+          <div><span>KILLS</span><b>${player.kills}</b></div>
+          <div><span>PEAK NOISE</span><b>${player.peak_noise}</b></div>
+          <div><span>RESETS</span><b>${player.resets}</b></div>
+          <div><span>ALERT</span><b>${player.alert}</b></div>
+          <div><span>LOAD</span><b>${player.load} / ${player.capacity}</b></div>
+        </div>
+        <div class="section">
+          <h3>ROMS READ</h3>
+          <p>${player.roms.map((rom) => esc(rom.name)).join(", ") || "NONE"}</p>
+        </div>
+        <p class="seed-line">SEED <b>${game.seed}</b></p>`;
+    }
+
+    const actions = coop
+      ? [
+          {
+            label: "TITLE",
+            detail: "ENCERRA A SALA E VOLTA AO MENU",
+            tone: "plain",
+            primary: true,
+            onSelect: () => app.toTitle(),
+          },
+        ]
+      : [
+          {
+            label: "NEW RUN",
+            detail: "NOVA SEED, NOVO SISTEMA",
+            tone: "green",
+            primary: true,
+            onSelect: () => app.startRun(null),
+          },
+          {
+            label: "RETRY THIS SEED",
+            detail: `SEED ${game.seed}`,
+            tone: "cyan",
+            onSelect: () => app.startRun(game.seed),
+          },
+          {
+            label: "TITLE",
+            detail: "VOLTAR AO MENU",
+            tone: "plain",
+            onSelect: () => app.toTitle(),
+          },
+        ];
 
     this.openContent({
       title: victory ? "ECOS RECLAIMED" : "RUN TERMINATED",

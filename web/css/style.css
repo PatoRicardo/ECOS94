@@ -1163,3 +1163,153 @@ button.row-item:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ------------------------------------------------------------- CO-OP HUD */
+.party {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  padding: 4px 8px 5px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.35);
+  scrollbar-width: none;
+}
+
+.party::-webkit-scrollbar {
+  display: none;
+}
+
+.party-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.party-member b {
+  font-size: 11px;
+}
+
+.party-member .pm-hp {
+  color: var(--muted);
+}
+
+.party-member .pm-state {
+  color: var(--muted);
+}
+
+.party-member.local {
+  border-color: rgba(85, 255, 136, 0.55);
+}
+
+.party-member.ready {
+  border-color: rgba(85, 255, 136, 0.3);
+}
+
+.party-member.ready .pm-state {
+  color: var(--green);
+}
+
+.party-member.wait .pm-state {
+  color: var(--yellow);
+}
+
+.party-member.dead {
+  opacity: 0.55;
+  border-color: rgba(255, 85, 102, 0.4);
+}
+
+.party-member.dead .pm-state {
+  color: var(--red);
+}
+
+.party-member.lost {
+  opacity: 0.4;
+}
+
+/* --------------------------------------------------------------- LOBBY */
+.lobby-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: 1px dashed rgba(85, 255, 136, 0.35);
+}
+
+.lobby-code span {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+}
+
+.lobby-code b {
+  color: var(--green);
+  font-size: clamp(24px, 7vw, 38px);
+  letter-spacing: 0.28em;
+  text-shadow: 0 0 12px rgba(85, 255, 136, 0.45);
+}
+
+.lobby-link {
+  margin: 0 0 10px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  font-size: 9px;
+  word-break: break-all;
+  text-align: center;
+}
+
+.lobby-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lobby-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(85, 255, 136, 0.1);
+  font-size: 11px;
+}
+
+.lobby-player:last-child {
+  border-bottom: none;
+}
+
+.lobby-player .lp-key {
+  width: 2.2em;
+  color: var(--muted);
+}
+
+.lobby-player .lp-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-player .lp-tag {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.lobby-player.empty {
+  opacity: 0.4;
+}
+
+.lobby-player.empty .lp-name {
+  color: var(--muted);
+}

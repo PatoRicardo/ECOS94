@@ -1,6 +1,14 @@
 /** Entidades do jogo: jogador, monstros, itens e ROMs. */
 
-import { BASE_CAPACITY, ITEMS, MONSTERS, ROMS, ROM_SLOTS } from "./data.js";
+import {
+  BASE_CAPACITY,
+  ITEMS,
+  MONSTERS,
+  PLAYER_COLORS,
+  PLAYER_GLYPHS,
+  ROMS,
+  ROM_SLOTS,
+} from "./data.js";
 
 export class Item {
   constructor(kind, charges = 1, payload = null) {
@@ -73,7 +81,10 @@ export class Monster {
     this.alive = true;
     this.stun = 0;
     this.behavior = d.behavior;
+    this.range = d.range || 0;
+    this.elite = false;
     this.cooldown = rng.randint(0, this.speed);
+    this.summoned = 0;
   }
 
   is_adjacent(x, y) {
@@ -91,7 +102,16 @@ export class Monster {
 
 export class Player {
   /** O operador, descendo o sistema. */
-  constructor() {
+  constructor(id = 0, name = "OPERATOR") {
+    this.id = id;
+    this.name = String(name || `OPERATOR ${id + 1}`).slice(0, 12);
+    this.color = PLAYER_COLORS[id % PLAYER_COLORS.length];
+    this.glyph = PLAYER_GLYPHS[id % PLAYER_GLYPHS.length];
+    this.memory = null;
+    this.dead = false;
+    this.acted = false;
+    this.ready = false;
+    this.connected = true;
     this.max_hp = 28;
     this.hp = 28;
     this.base_atk = 2;

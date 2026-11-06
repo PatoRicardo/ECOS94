@@ -68,6 +68,81 @@ export const MONSTERS = {
     color: C.BROWN,
     behavior: "noisy",
   },
+  spitter: {
+    name: "SPITTER",
+    glyph: "s",
+    hp: 5,
+    atk: 2,
+    dfn: 0,
+    speed: 3,
+    hearing: 24,
+    sight: 8,
+    range: 5,
+    color: C.LGREEN,
+    behavior: "ranged",
+  },
+  charger: {
+    name: "CHARGER",
+    glyph: "c",
+    hp: 9,
+    atk: 3,
+    dfn: 1,
+    speed: 2,
+    hearing: 32,
+    sight: 7,
+    color: C.LRED,
+    behavior: "charger",
+  },
+  slime: {
+    name: "SLIME",
+    glyph: "o",
+    hp: 6,
+    atk: 2,
+    dfn: 0,
+    speed: 3,
+    hearing: 20,
+    sight: 5,
+    color: C.LGREEN,
+    behavior: "splitter",
+  },
+  summoner: {
+    name: "SUMMONER",
+    glyph: "n",
+    hp: 10,
+    atk: 2,
+    dfn: 1,
+    speed: 3,
+    hearing: 34,
+    sight: 9,
+    range: 6,
+    color: C.LMAGENTA,
+    behavior: "summoner",
+  },
+  sentinel: {
+    name: "SENTINEL",
+    glyph: "t",
+    hp: 14,
+    atk: 4,
+    dfn: 3,
+    speed: 4,
+    hearing: 0,
+    sight: 9,
+    range: 7,
+    color: C.LCYAN,
+    behavior: "sentinel",
+  },
+  phantom: {
+    name: "PHANTOM",
+    glyph: "p",
+    hp: 7,
+    atk: 3,
+    dfn: 1,
+    speed: 2,
+    hearing: 30,
+    sight: 10,
+    color: C.LMAGENTA,
+    behavior: "phantom",
+  },
   devourer: {
     name: "DEVOURER",
     glyph: "X",
@@ -85,16 +160,16 @@ export const MONSTERS = {
 
 // Ordem de aparicao por profundidade: quanto mais fundo, mais bicho.
 export const SPAWN_TABLE = {
-  1: ["rat", "rat", "goblin"],
-  2: ["rat", "goblin", "goblin", "bat"],
-  3: ["rat", "goblin", "bat", "bat", "wraith"],
-  4: ["goblin", "bat", "wraith", "wraith", "rat_giant"],
-  5: ["goblin", "bat", "wraith", "rat_giant", "rat_giant"],
-  6: ["bat", "wraith", "wraith", "rat_giant"],
-  7: ["wraith", "wraith", "rat_giant", "rat_giant"],
-  8: ["wraith", "rat_giant", "rat_giant"],
-  9: ["rat_giant", "rat_giant", "wraith"],
-  10: ["rat_giant", "rat_giant"],
+  1: ["rat", "rat", "goblin", "bat"],
+  2: ["rat", "goblin", "goblin", "bat", "spitter"],
+  3: ["rat", "goblin", "bat", "spitter", "slime", "wraith"],
+  4: ["goblin", "bat", "spitter", "slime", "charger", "wraith"],
+  5: ["bat", "spitter", "charger", "summoner", "wraith", "rat_giant"],
+  6: ["spitter", "charger", "summoner", "sentinel", "wraith", "rat_giant"],
+  7: ["charger", "summoner", "sentinel", "phantom", "wraith", "rat_giant"],
+  8: ["summoner", "sentinel", "phantom", "charger", "rat_giant"],
+  9: ["sentinel", "phantom", "summoner", "rat_giant"],
+  10: ["sentinel", "phantom", "rat_giant"],
 };
 
 // ---------------------------------------------------------------------- itens
@@ -284,6 +359,17 @@ export const PASSWORD_WORDS = [
 
 // ------------------------------------------------------------------ constantes
 export const MAX_DEPTH = 10;
+export const MAX_PLAYERS = 5;
+export const TURN_TIMEOUT_MS = 4000;
+export const RESPAWN_HP_RATIO = 0.5;
+export const PLAYER_COLORS = [
+  C.WHITE,
+  C.LCYAN,
+  C.LGREEN,
+  C.YELLOW,
+  C.LMAGENTA,
+];
+export const PLAYER_GLYPHS = ["@", "1", "2", "3", "4"];
 export const BASE_CAPACITY = 40;
 export const NOISE_MAX = 100;
 export const NOISE_DECAY = 4;

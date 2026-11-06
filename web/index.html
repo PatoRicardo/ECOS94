@@ -55,6 +55,8 @@
           </div>
         </header>
 
+        <div id="party" class="party hidden" aria-label="Party"></div>
+
         <div id="stage">
           <canvas id="map" aria-label="Setor"></canvas>
           <div id="ripple" aria-hidden="true"></div>
@@ -128,6 +130,7 @@ python -m http.server 8765</pre>
         document.getElementById("file-warning").classList.remove("hidden");
       }
     </script>
+    <script src="vendor/peerjs.min.js"></script>
     <script type="module" src="js/app.js"></script>
   </body>
 </html>

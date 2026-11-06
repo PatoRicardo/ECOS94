@@ -16,6 +16,7 @@ import {
   SPAWN_TABLE,
 } from "./data.js";
 import { Item, Monster, Rom } from "./entities.js";
+import { C } from "./theme.js";
 
 export const DIRS4 = [
   [0, -1],
@@ -101,9 +102,8 @@ export class Level {
     this.monsters = [];
     this.stairs_up = [0, 0];
     this.stairs_down = [0, 0];
+    this.spawn_points = [];
     this.password = null;
-    this.known = Array.from({ length: h }, () => new Array(w).fill(0));
-    this.lit_at = Array.from({ length: h }, () => new Array(w).fill(-1));
   }
 
   // ------------------------------------------------------------- consultas
@@ -154,6 +154,23 @@ export class Level {
         if (this.tiles[y][x].kind === "floor") yield [x, y];
       }
     }
+  }
+
+  /** Chao livre mais proximo de uma posicao (spawn de late join). */
+  free_spot_near(pos) {
+    const [cx, cy] = pos;
+    for (let radius = 0; radius < Math.max(this.w, this.h); radius += 1) {
+      for (let y = cy - radius; y <= cy + radius; y += 1) {
+        for (let x = cx - radius; x <= cx + radius; x += 1) {
+          if (!this.in_bounds(x, y)) continue;
+          if (this.tiles[y][x].kind !== "floor") continue;
+          if (this.monster_at(x, y) !== null) continue;
+          if (this.item_at(x, y) !== null || this.rom_at(x, y) !== null) continue;
+          return [x, y];
+        }
+      }
+    }
+    return null;
   }
 }
 
@@ -410,7 +427,7 @@ function item_table(depth) {
   return table;
 }
 
-function place_loot(level, rng, depth, vault_rect = null) {
+function place_loot(level, rng, depth, vault_rect = null, partySize = 1) {
   if (level.rooms.length === 0) return;
 
   const open_set = reachable_tiles(level, level.stairs_up);
@@ -426,7 +443,7 @@ function place_loot(level, rng, depth, vault_rect = null) {
   // Itens comuns: em qualquer sala, exceto a inicial.
   const pool = level.rooms.filter((r) => r !== level.rooms[0]);
   const rooms_pool = pool.length ? pool : [...level.rooms];
-  const count = 8 + depth + rng.randint(0, 2);
+  const count = 8 + depth + 4 * (partySize - 1) + rng.randint(0, 2);
   for (let index = 0; index < count; index += 1) {
     const room = rng.choice(rooms_pool);
     const spot = room.free_floor(level, rng);
@@ -443,17 +460,20 @@ function place_loot(level, rng, depth, vault_rect = null) {
     level.items.push(item);
   }
 
-  // SLATE: sempre numa sala alcancavel sem destrancar.
+  // SLATE: um por dupla de operadores, sempre em area alcancavel.
   level.password = rng.choice(PASSWORD_WORDS);
   let slate_rooms = open_rooms.filter((r) => r !== level.rooms[0]);
   if (slate_rooms.length === 0) slate_rooms = open_rooms;
-  for (const room of rng.sample(slate_rooms, slate_rooms.length)) {
-    const spot = room.free_floor(level, rng);
-    if (!spot) continue;
-    const slate = new Item("slate", 1, level.password);
-    [slate.x, slate.y] = spot;
-    level.items.push(slate);
-    break;
+  const slate_count = 1 + Math.floor((partySize - 1) / 2);
+  for (let index = 0; index < slate_count; index += 1) {
+    for (const room of rng.sample(slate_rooms, slate_rooms.length)) {
+      const spot = room.free_floor(level, rng);
+      if (!spot) continue;
+      const slate = new Item("slate", 1, level.password);
+      [slate.x, slate.y] = spot;
+      level.items.push(slate);
+      break;
+    }
   }
 
   // ROM: preferencialmente dentro do cofre trancado.
@@ -483,44 +503,61 @@ function place_loot(level, rng, depth, vault_rect = null) {
   }
 }
 
-function place_monsters(level, rng, depth) {
+function place_monsters(level, rng, depth, partySize = 1) {
   if (level.rooms.length < 2) return;
   const pool = level.rooms.slice(1);
   const table = SPAWN_TABLE[Math.min(depth, 10)] || SPAWN_TABLE[10];
-  let count;
-  if (depth >= 10) {
-    // Ultimo setor: arena do chefe, nao um formigueiro.
-    count = 2 + rng.randint(0, 1);
-  } else {
-    count = 2 + Math.floor(depth / 2) + rng.randint(0, 2);
-  }
+  const base = depth >= 10 ? 2 : 2 + Math.floor(depth / 2);
+  const count =
+    Math.ceil(base * (1 + 0.55 * (partySize - 1))) + rng.randint(0, 2);
   for (let i = 0; i < count; i += 1) {
     const room = rng.choice(pool);
     const spot = room.free_floor(level, rng);
     if (!spot) continue;
     const monster = new Monster(rng.choice(table), depth, rng);
+    if (partySize > 1) {
+      monster.max_hp = Math.ceil(monster.max_hp * (1 + 0.28 * (partySize - 1)));
+      monster.hp = monster.max_hp;
+      monster.atk = Math.ceil(monster.atk * (1 + 0.12 * (partySize - 1)));
+    }
+    if (rng.chance(Math.min(0.25, 0.03 * depth + 0.02 * (partySize - 1)))) {
+      monster.elite = true;
+      monster.max_hp = Math.ceil(monster.max_hp * 1.6);
+      monster.hp = monster.max_hp;
+      monster.atk += 1;
+      monster.dfn += 1;
+      monster.name = `ELITE ${monster.name}`;
+      monster.color = C.LRED;
+    }
     [monster.x, monster.y] = spot;
     level.monsters.push(monster);
   }
   if (depth === 10) {
     const boss = new Monster("devourer", depth, rng);
+    boss.max_hp = Math.ceil(boss.max_hp * (1 + 0.45 * (partySize - 1)));
+    boss.hp = boss.max_hp;
+    boss.atk += Math.floor((partySize - 1) / 2);
     boss.x = level.rooms[level.rooms.length - 1].cx;
     boss.y = level.rooms[level.rooms.length - 1].cy;
     level.monsters.push(boss);
   }
 }
 
-/** Cria um setor completo para a profundidade informada. */
-export function generate(rng, depth) {
-  const w = rng.randint(46, 72);
-  const h = rng.randint(30, 48);
+/** Cria um setor completo para a profundidade e party informadas. */
+export function generate(rng, depth, options = {}) {
+  const partySize = Math.max(1, Math.min(5, Number(options.partySize) || 1));
+  const w = rng.randint(46, 72) + 4 * (partySize - 1);
+  const h = rng.randint(30, 48) + 3 * (partySize - 1);
   const level = new Level(w, h);
 
-  const target_rooms = Math.min(9, 4 + Math.floor(depth / 2));
+  const target_rooms = Math.min(
+    16,
+    4 + Math.floor(depth / 2) + 2 * (partySize - 1)
+  );
   for (let attempt = 0; attempt < 400; attempt += 1) {
     if (level.rooms.length >= target_rooms) break;
-    const rw = rng.randint(5, 11);
-    const rh = rng.randint(4, 8);
+    const rw = rng.randint(5, 11 + (partySize > 2 ? 3 : 0));
+    const rh = rng.randint(4, 8 + (partySize > 2 ? 2 : 0));
     const rx = rng.randint(1, w - rw - 2);
     const ry = rng.randint(1, h - rh - 2);
     const room = new Room(rx, ry, rw, rh);
@@ -551,6 +588,17 @@ export function generate(rng, depth) {
       level.rooms[level.rooms.length - 1].cx,
       level.rooms[level.rooms.length - 1].cy,
     ];
+    // Spawns distintos para a party inteira, comecando na sala inicial.
+    const spawn = [level.stairs_up];
+    const room = level.rooms[0];
+    for (let y = room.y; y < room.y + room.h && spawn.length < partySize; y += 1) {
+      for (let x = room.x; x < room.x + room.w && spawn.length < partySize; x += 1) {
+        if (level.tiles[y][x].kind !== "floor") continue;
+        if (spawn.some(([sx, sy]) => sx === x && sy === y)) continue;
+        spawn.push([x, y]);
+      }
+    }
+    level.spawn_points = spawn;
   }
 
   // Cofre lateral com porta trancada (a partir do setor 2).
@@ -565,7 +613,7 @@ export function generate(rng, depth) {
   place_doors(level, rng, depth >= 2);
   ensure_reachable(level, vault_door ? new Set([key(...vault_door)]) : new Set());
 
-  place_loot(level, rng, depth, vault_rect);
-  place_monsters(level, rng, depth);
+  place_loot(level, rng, depth, vault_rect, partySize);
+  place_monsters(level, rng, depth, partySize);
   return level;
 }

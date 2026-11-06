@@ -46,6 +46,44 @@ O `run.bat` continua sendo só para rodar localmente; o Pages não precisa dele.
 
 ---
 
+## Co-op (2–5 jogadores)
+
+O modo cooperativo é **P2P**: o host é autoritativo e os clientes só enviam
+intenções. A sinalização WebRTC usa o broker público do PeerJS — não existe
+servidor próprio, banco de dados nem cadastro. O binário do PeerJS fica
+vendorizado em `vendor/peerjs.min.js`, então o GitHub Pages continua sendo
+hospedagem estática pura.
+
+1. No título, escolha **HOST CO-OP · 2–5** (`P`) e informe seu callsign.
+2. Compartilhe o **ROOM CODE** (5 letras) ou o link `?room=CODIGO`.
+3. Os outros escolhem **JOIN ROOM** (`J`) e entram com o código. Até 5 no total.
+4. O host aperta **START CO-OP**. Também é possível começar sozinho e deixar
+   alguém entrar no meio da run (late join nasce na entrada do setor).
+
+Regras do co-op:
+
+- **Turnos em lockstep:** o tick só fecha quando todos os vivos agiram. Se
+  alguém demorar mais de **4 s**, o host fecha o turno automaticamente.
+- **Descoberta individual:** cada operador tem sua própria memória do mapa.
+  Um ping ou RULER revela apenas para quem usou. Os outros só veem o tile se
+  estiverem com ele iluminado na própria memória.
+- **Morte:** o operador vira `%` e fica fora até a party descer para o próximo
+  setor; então renasce na entrada com metade do HP máximo. A run só termina
+  quando todos morrem (wipe) ou a party vence o setor 10.
+- **Setores maiores e mais difíceis:** tamanho, número de salas, loot,
+  slates, monstros e elites escalam com o tamanho da party.
+- **Novos inimigos:** `SPITTER` (ataque à distância), `CHARGER` (investida),
+  `SLIME` (divide ao morrer), `SUMMONER` (invoca ratos), `SENTINEL` (torreta
+  imóvel de longo alcance) e `PHANTOM` (atravessa paredes).
+- **Sem host migration:** se o host fechar a aba, a partida acaba. O estado
+  vive só na memória do host.
+
+> O co-op precisa de HTTPS ou `localhost` para WebRTC/getUserMedia-ish APIs do
+> navegador. `http://localhost` funciona; abrir `file://` não funciona (módulos
+> ES e WebRTC ficam bloqueados).
+
+---
+
 ## Controles
 
 ### Desktop
@@ -112,9 +150,15 @@ web/
 │   ├── context.js      ações do botão INTERACT
 │   ├── renderer.js     mapa em canvas
 │   ├── ui.js           HUD, log, painéis e inventário
+│   ├── net.js          PeerJS host/join e códigos de sala
+│   ├── protocol.js     snapshot/estado e ClientGame (cliente)
 │   ├── theme.js        paleta VGA e fósforo
 │   └── audio.js        PC speaker via WebAudio
-└── tests/simulate.mjs  suíte headless (Node)
+├── vendor/
+│   └── peerjs.min.js   PeerJS 1.5.4 vendorizado (MIT)
+├── tests/
+│   ├── simulate.mjs    suíte headless solo (Node)
+│   └── party.mjs       suíte headless de co-op (Node)
 ```
 
 O núcleo (`game.js`, `dungeon.js`, `ai.js`, `status.js`, `sonar.js`) não
@@ -138,6 +182,10 @@ node web/tests/simulate.mjs
 A suíte espelha `tools/simulate.py`: geração dos 10 setores, comandos,
 portas, descida, reprodutibilidade por seed, fuzz de 16 mil turnos e um bot
 que joga sozinho. Saída esperada: `TODAS AS VERIFICACOES PASSARAM.`
+
+O `npm test` também roda `tests/party.mjs`, que cobre party de 5, memória
+individual, lockstep, timeout, respawn, descida, novos inimigos e o protocolo
+host/cliente (`TODAS AS VERIFICACOES DE CO-OP PASSARAM.`).
 
 A suíte Python original continua válida:
 

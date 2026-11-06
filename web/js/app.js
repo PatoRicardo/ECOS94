@@ -7,8 +7,15 @@
 
 import { play, setMuted, unlock } from "./audio.js";
 import { build_context, context_subtitle } from "./context.js";
+import { MAX_PLAYERS, TURN_TIMEOUT_MS } from "./data.js";
 import { Game } from "./game.js";
 import { PROLOGUE, prologuePage } from "./lore.js";
+import { Net, roomLink } from "./net.js";
+import {
+  ClientGame,
+  serialize_snapshot,
+  serialize_state,
+} from "./protocol.js";
 import { Renderer } from "./renderer.js";
 import { random_seed } from "./rng.js";
 import { PHOSPHOR_CYCLE, setMode } from "./theme.js";
@@ -103,6 +110,16 @@ export const app = {
   renderer: null,
   screen: "boot",
   _overShown: false,
+  net: null,
+  role: "solo", // solo | host | client
+  lobby: [],
+  lobbyCode: null,
+  lobbyHostName: "",
+  lobbyStarted: false,
+  partyTimer: null,
+  _lastDepth: 0,
+  _lastLevel: null,
+  _netToGame: new Map(),
 
   // --------------------------------------------------------------- init
   init() {
@@ -198,6 +215,18 @@ export const app = {
         run: () => this.startRun(null),
       },
       {
+        key: "P",
+        label: "HOST CO-OP · 2–5",
+        meta: "CRIA UMA SALA E COMPARTILHA O CÓDIGO",
+        run: () => this.hostCoop(),
+      },
+      {
+        key: "J",
+        label: "JOIN ROOM",
+        meta: "ENTRA POR CÓDIGO OU LINK",
+        run: () => this.joinCoop(),
+      },
+      {
         key: "S",
         label: "ENTER SEED",
         meta: "MESMA SEED, MESMO MAPA",
@@ -261,6 +290,7 @@ export const app = {
   },
 
   toTitle() {
+    this.stopParty();
     this.game = null;
     this._overShown = false;
     this.screen = "title";
@@ -272,6 +302,386 @@ export const app = {
       history.replaceState(null, "", location.pathname);
     } catch {
       /* file:// ou sandbox */
+    }
+  },
+
+  // ------------------------------------------------------------- co-op
+  stopParty() {
+    if (this.partyTimer) clearTimeout(this.partyTimer);
+    this.partyTimer = null;
+    if (this.net) this.net.close();
+    this.net = null;
+    this.role = "solo";
+    this.lobby = [];
+    this.lobbyCode = null;
+    this.lobbyStarted = false;
+    this._clientDepth = new Map();
+    this._netToGame = new Map();
+    this._nextNetId = 1;
+    this._lastLevel = null;
+  },
+
+  async hostCoop() {
+    const name = (window.prompt("CALLSIGN (HOST)", "OPERATOR") || "").trim();
+    if (!name) return;
+    this.stopParty();
+    this.role = "host";
+    this.lobby = [{ name: name.slice(0, 12), id: 0 }];
+    this.lobbyHostName = name.slice(0, 12);
+    const net = new Net();
+    this.net = net;
+    this._clientDepth = new Map();
+    this._nextNetId = 1;
+    this._netToGame = new Map([[0, 0]]);
+    net.on("hello", ({ name: clientName }) => {
+      if (this.lobbyStarted && this.game) {
+        if (this.game.players.length >= MAX_PLAYERS) return null;
+        const player = this.game.add_player(clientName);
+        if (!player) return null;
+        const netId = this._nextNetId++;
+        this._netToGame.set(netId, player.id);
+        this.lobby.push({ name: player.name, id: netId });
+        setTimeout(() => {
+          this.sendToPlayer(netId, true);
+          this.refresh();
+          this.syncParty();
+        }, 80);
+        return netId;
+      }
+      if (this.lobby.length >= MAX_PLAYERS) return null;
+      const id = this._nextNetId++;
+      this.lobby.push({ name: clientName, id });
+      setTimeout(() => this.broadcastLobby(), 20);
+      return id;
+    });
+    net.on("message", ({ playerId, message }) => {
+      if (message.t === "intent") this.receiveIntent(playerId, message.intent);
+    });
+    net.on("leave", ({ playerId }) => {
+      const gameId = this._netToGame.get(playerId);
+      if (this.game && this.lobbyStarted && gameId !== undefined) {
+        this.game.remove_player(gameId);
+      }
+      this._netToGame.delete(playerId);
+      this.lobby = this.lobby.filter((entry) => entry.id !== playerId);
+      this.broadcastLobby();
+      this.refresh();
+      this.syncParty();
+      this.armPartyTimer();
+    });
+    net.on("error", (error) => this.partyError(error));
+    try {
+      const code = await net.host(name.slice(0, 12));
+      this.lobbyCode = code;
+      this.showLobby();
+    } catch (error) {
+      this.stopParty();
+      this.partyError(error);
+    }
+  },
+
+  async joinCoop() {
+    const params = new URLSearchParams(location.search);
+    const code = (window.prompt(
+      "ROOM CODE",
+      (params.get("room") || "").toUpperCase()
+    ) || "").trim().toUpperCase();
+    if (!code) return;
+    const name = (window.prompt("CALLSIGN", "OPERATOR") || "").trim();
+    if (!name) return;
+    this.stopParty();
+    this.role = "client";
+    const net = new Net();
+    this.net = net;
+    net.on("message", ({ message }) => this.clientMessage(message));
+    net.on("leave", () => this.partyError("HOST DESCONECTOU."));
+    net.on("error", (error) => this.partyError(error));
+    this.showConnecting(code);
+    try {
+      await net.join(code, name.slice(0, 12));
+      this.lobbyCode = code;
+    } catch (error) {
+      this.stopParty();
+      this.partyError(error);
+    }
+  },
+
+  partyError(error) {
+    const text = String(error && error.message ? error.message : error || "ERRO");
+    ui.openContent({
+      title: "CONNECTION ERROR",
+      subtitle: text.toUpperCase(),
+      body: "<p class='muted'>SOLO CONTINUA DISPONÍVEL NO MENU. VERIFIQUE O CÓDIGO E A INTERNET.</p>",
+      actions: [
+        {
+          label: "BACK TO TITLE",
+          key: "ESC",
+          tone: "plain",
+          onSelect: () => app.toTitle(),
+        },
+      ],
+    });
+  },
+
+  showConnecting(code) {
+    ui.openContent({
+      title: "CONNECTING",
+      subtitle: `ROOM ${code} · WEBRTC`,
+      body: `<p class="muted">AGUARDANDO O HOST. O BROKER PÚBLICO FAZ SÓ A SINALIZAÇÃO; NENHUM BANCO É USADO.</p>`,
+      actions: [
+        {
+          label: "CANCEL",
+          key: "ESC",
+          tone: "plain",
+          onSelect: () => app.toTitle(),
+        },
+      ],
+    });
+  },
+
+  showLobby() {
+    if (!this.lobbyCode) return;
+    ui.openLobby({
+      code: this.lobbyCode,
+      link: roomLink(this.lobbyCode),
+      players: this.lobby,
+      max: MAX_PLAYERS,
+      host: true,
+      onStart: () => this.startCoop(),
+      onCopy: () => this.copyRoomLink(),
+      onClose: () => this.toTitle(),
+    });
+  },
+
+  clientLobby(message) {
+    this.lobby = message.players || [];
+    if (message.started) return;
+    ui.openLobby({
+      code: this.lobbyCode,
+      link: roomLink(this.lobbyCode || ""),
+      players: this.lobby,
+      max: MAX_PLAYERS,
+      host: false,
+      onClose: () => this.toTitle(),
+    });
+  },
+
+  broadcastLobby() {
+    if (this.role !== "host" || !this.net || this.lobbyStarted) return;
+    this.net.broadcast({
+      t: "lobby",
+      players: this.lobby,
+      started: false,
+      code: this.lobbyCode,
+    });
+    if (ui.overlayOpen && !this.lobbyStarted) this.showLobby();
+  },
+
+  async copyRoomLink() {
+    const link = roomLink(this.lobbyCode || "");
+    try {
+      await navigator.clipboard.writeText(link);
+      ui.setHint("LINK COPIADO.");
+    } catch {
+      window.prompt("COPIE O LINK DA SALA", link);
+    }
+  },
+
+  startCoop() {
+    if (this.role !== "host" || !this.lobby.length) return;
+    const seed = random_seed();
+    const roster = this.lobby.map((entry) => ({ name: entry.name }));
+    this.game = new Game(seed, {
+      players: roster,
+      localId: 0,
+      partyMode: true,
+    });
+    // ID da conexao -> ID do jogador dentro do Game (indice do roster).
+    this._netToGame = new Map();
+    this.lobby.forEach((entry, index) => {
+      this._netToGame.set(entry.id, index);
+    });
+    this.options.lastSeed = seed;
+    saveOptions(this.options);
+    this.lobbyStarted = true;
+    this.screen = "play";
+    this._overShown = false;
+    this._clientDepth = new Map();
+    this._lastLevel = this.game.level;
+    ui.close(true);
+    ui.showScreen("game");
+    this.refresh();
+    if (this.net) {
+      this.net.broadcast({ t: "started", seed });
+      for (const [playerId] of this.net.conns) {
+        this._clientDepth.set(playerId, -1);
+        this.sendToPlayer(playerId, true);
+      }
+    }
+    this.armPartyTimer();
+  },
+
+  sendToPlayer(playerId, snapshot = false) {
+    if (!this.game || !this.net) return;
+    const gameId = this._netToGame.get(playerId);
+    if (gameId === undefined) return;
+    const depth = this._clientDepth?.get(playerId);
+    const needSnapshot = snapshot || depth !== this.game.depth;
+    this.net.send(
+      playerId,
+      needSnapshot
+        ? serialize_snapshot(this.game, gameId)
+        : serialize_state(this.game, gameId)
+    );
+    this._clientDepth.set(playerId, this.game.depth);
+  },
+
+  syncParty() {
+    if (this.role !== "host" || !this.net || !this.game) return;
+    for (const [playerId] of this.net.conns) this.sendToPlayer(playerId);
+  },
+
+  armPartyTimer() {
+    if (this.role !== "host" || !this.game || this.game.over) return;
+    if (this.partyTimer) clearTimeout(this.partyTimer);
+    const active = this.game.activePlayers();
+    const pending = active.filter((player) => !player.acted);
+    if (pending.length === 0 || pending.length === active.length) {
+      this.partyTimer = null;
+      return;
+    }
+    this.partyTimer = setTimeout(() => {
+      if (!this.game || this.game.over) return;
+      this.game.force_end_turn();
+      this.refresh();
+      this.syncParty();
+      this.armPartyTimer();
+    }, TURN_TIMEOUT_MS);
+  },
+
+  receiveIntent(playerId, intent) {
+    const game = this.game;
+    if (!game || game.over || !intent) return;
+    const gameId = this._netToGame.get(playerId);
+    if (gameId === undefined) return;
+    const player = game.players.find((entry) => entry.id === gameId);
+    if (!player) return;
+    const beforeHp = game.player.hp;
+    try {
+      switch (intent.a) {
+        case "move":
+          game.move(Number(intent.dx), Number(intent.dy), player);
+          break;
+        case "ping":
+          game.ping(player);
+          break;
+        case "measure":
+          game.measure(Number(intent.dx), Number(intent.dy), player);
+          break;
+        case "lock":
+          game.lock_door(player);
+          break;
+        case "unlock":
+          game.unlock_door(player);
+          break;
+        case "brute":
+          game.brute_force(player);
+          break;
+        case "pickup":
+          game.pickup(player);
+          break;
+        case "wait":
+          game.wait(player);
+          break;
+        case "reset":
+          game.reset_sector(player);
+          break;
+        case "read_rom": {
+          const rom = game.level.roms_on_floor[Number(intent.index)];
+          if (rom) {
+            if (Number.isInteger(intent.overwrite) && player.roms[intent.overwrite]) {
+              game.overwrite_rom(player.roms[intent.overwrite], rom, player);
+            } else {
+              game.read_rom(rom, player);
+            }
+          }
+          break;
+        }
+        case "equip": {
+          const item = player.inventory[Number(intent.index)];
+          if (item) game.equip(item, player);
+          break;
+        }
+        case "drop": {
+          const item = player.inventory[Number(intent.index)];
+          if (item) game.drop_item(item, player);
+          break;
+        }
+        case "use": {
+          const item = player.inventory[Number(intent.index)];
+          if (item) game.use_item(item, player);
+          break;
+        }
+        default:
+          break;
+      }
+    } catch (error) {
+      console.error(error);
+    }
+    this.afterMutation(beforeHp);
+  },
+
+  clientMessage(message) {
+    if (!message) return;
+    if (message.t === "full") {
+      this.partyError("SALA CHEIA (5/5).");
+      return;
+    }
+    if (message.t === "welcome") {
+      this.lobbyCode = message.code || this.lobbyCode;
+      return;
+    }
+    if (message.t === "lobby") {
+      this.clientLobby(message);
+      return;
+    }
+    if (message.t === "started") {
+      this.lobbyStarted = true;
+      return;
+    }
+    if (message.t === "snapshot") {
+      this.game = new ClientGame(message, (intent) =>
+        this.net?.sendToHost({ t: "intent", intent })
+      );
+      this.screen = "play";
+      this._overShown = false;
+      ui.close(true);
+      ui.showScreen("game");
+      this.refresh();
+      return;
+    }
+    if (message.t === "state" && this.game) {
+      const hurt = this.game.applyState(message);
+      if (hurt) ui.flash();
+      this.refresh();
+      this.afterClientState();
+      return;
+    }
+    if (message.t === "error") this.partyError(message.message || "ERRO");
+  },
+
+  afterClientState() {
+    if (!this.game) return;
+    if (this.game.over && !this._overShown) {
+      this._overShown = true;
+      ui.openGameOver(this.game, this);
+      play(this.game.victory ? "win" : "death");
+    }
+  },
+
+  sendIntent(intent) {
+    if (this.role === "client" && this.net) {
+      this.net.sendToHost({ t: "intent", intent });
     }
   },
 
@@ -324,6 +734,19 @@ export const app = {
     if (!game) return;
     if (game.player.hp < beforeHp) ui.flash();
     this.refresh();
+    if (this.role === "host") {
+      const levelChanged = this._lastLevel !== game.level;
+      if (levelChanged) {
+        for (const playerId of this.net ? this.net.conns.keys() : []) {
+          this.sendToPlayer(playerId, true);
+          this._clientDepth.set(playerId, game.depth);
+        }
+      } else {
+        this.syncParty();
+      }
+      this._lastLevel = game.level;
+      this.armPartyTimer();
+    }
     if (game.over && !this._overShown) {
       this._overShown = true;
       ui.openGameOver(game, this);
@@ -483,6 +906,14 @@ export const app = {
     const key = event.key.toLowerCase();
     if (key === "n") {
       this.startRun(null);
+      return;
+    }
+    if (key === "p") {
+      this.hostCoop();
+      return;
+    }
+    if (key === "j") {
+      this.joinCoop();
       return;
     }
     if (key === "s") {

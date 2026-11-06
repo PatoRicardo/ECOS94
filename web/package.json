@@ -5,7 +5,7 @@
   "type": "module",
   "description": "ECOS '94 — porte web do roguelike ASCII (sem dependencias)",
   "scripts": {
-    "test": "node tests/simulate.mjs",
+    "test": "node tests/simulate.mjs && node tests/party.mjs",
     "serve": "python -m http.server 8765"
   }
 }

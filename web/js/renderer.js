@@ -93,6 +93,7 @@ export class Renderer {
 
     const level = game.level;
     const player = game.player;
+    const memory = player.memory;
     const beamVisible = game.turn - game.beam_turn <= 4;
     const beam = new Set(
       beamVisible ? game.beam.map(([x, y]) => `${x},${y}`) : []
@@ -105,7 +106,8 @@ export class Renderer {
     for (let row = 0; row < rows; row += 1) {
       const y = vy + row;
       if (y < 0 || y >= level.h) continue;
-      const knownRow = level.known[y];
+      const knownRow = memory ? memory.known[y] : null;
+      if (!knownRow) continue;
       for (let col = 0; col < cols; col += 1) {
         const x = vx + col;
         if (x < 0 || x >= level.w) continue;
@@ -156,7 +158,7 @@ export class Renderer {
     // Escadas
     const drawStairs = (pos, glyph, fg) => {
       const [x, y] = pos;
-      if (!level.known[y][x]) return;
+      if (!memory || !memory.known[y]?.[x]) return;
       const col = x - vx;
       const row = y - vy;
       if (col < 0 || col >= cols || row < 0 || row >= rows) return;
@@ -175,7 +177,7 @@ export class Renderer {
       const col = item.x - vx;
       const row = item.y - vy;
       if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
-      if (!level.known[item.y][item.x]) continue;
+      if (!memory?.known[item.y]?.[item.x]) continue;
       ctx.fillStyle = color(item.color);
       ctx.fillText(
         item.glyph,
@@ -189,7 +191,7 @@ export class Renderer {
       const col = rom.x - vx;
       const row = rom.y - vy;
       if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
-      if (!level.known[rom.y][rom.x]) continue;
+      if (!memory?.known[rom.y]?.[rom.x]) continue;
       ctx.fillStyle = color(C.YELLOW);
       ctx.fillText(
         G_ROM,
@@ -201,13 +203,29 @@ export class Renderer {
     // Monstros: so os que estao iluminados agora
     for (const monster of level.monsters) {
       if (!monster.alive) continue;
-      if (level.known[monster.y][monster.x] !== 2) continue;
+      if (!memory || memory.known[monster.y]?.[monster.x] !== 2) continue;
       const col = monster.x - vx;
       const row = monster.y - vy;
       if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
       ctx.fillStyle = color(monster.color);
       ctx.fillText(
         monster.glyph,
+        ox + col * cell + cell / 2,
+        oy + row * cell + cell / 2 + 1
+      );
+    }
+
+    // Outros operadores: apenas se o tile estiver iluminado para voce.
+    for (const other of game.players) {
+      if (other === player) continue;
+      const known = memory?.known[other.y]?.[other.x];
+      if (known !== 2) continue;
+      const col = other.x - vx;
+      const row = other.y - vy;
+      if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
+      ctx.fillStyle = color(other.dead ? C.RED : other.color, other.dead ? 0.5 : 0.95);
+      ctx.fillText(
+        other.dead ? "%" : other.glyph,
         ox + col * cell + cell / 2,
         oy + row * cell + cell / 2 + 1
       );
