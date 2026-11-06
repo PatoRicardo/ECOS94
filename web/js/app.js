@@ -7,7 +7,7 @@
 
 import { play, setMuted, unlock } from "./audio.js";
 import { build_context, context_subtitle } from "./context.js";
-import { MAX_PLAYERS, TURN_TIMEOUT_MS } from "./data.js";
+import { MAX_PLAYERS } from "./data.js";
 import { Game } from "./game.js";
 import { PROLOGUE, prologuePage } from "./lore.js";
 import { Net, roomLink } from "./net.js";
@@ -116,7 +116,6 @@ export const app = {
   lobbyCode: null,
   lobbyHostName: "",
   lobbyStarted: false,
-  partyTimer: null,
   _lastDepth: 0,
   _lastLevel: null,
   _netToGame: new Map(),
@@ -307,8 +306,6 @@ export const app = {
 
   // ------------------------------------------------------------- co-op
   stopParty() {
-    if (this.partyTimer) clearTimeout(this.partyTimer);
-    this.partyTimer = null;
     if (this.net) this.net.close();
     this.net = null;
     this.role = "solo";
@@ -367,7 +364,6 @@ export const app = {
       this.broadcastLobby();
       this.refresh();
       this.syncParty();
-      this.armPartyTimer();
     });
     net.on("error", (error) => this.partyError(error));
     try {
@@ -455,7 +451,7 @@ export const app = {
 
   clientLobby(message) {
     this.lobby = message.players || [];
-    if (message.started) return;
+    if (message.started || this.lobbyStarted) return;
     ui.openLobby({
       code: this.lobbyCode,
       link: roomLink(this.lobbyCode || ""),
@@ -518,7 +514,6 @@ export const app = {
         this.sendToPlayer(playerId, true);
       }
     }
-    this.armPartyTimer();
   },
 
   sendToPlayer(playerId, snapshot = false) {
@@ -539,24 +534,6 @@ export const app = {
   syncParty() {
     if (this.role !== "host" || !this.net || !this.game) return;
     for (const [playerId] of this.net.conns) this.sendToPlayer(playerId);
-  },
-
-  armPartyTimer() {
-    if (this.role !== "host" || !this.game || this.game.over) return;
-    if (this.partyTimer) clearTimeout(this.partyTimer);
-    const active = this.game.activePlayers();
-    const pending = active.filter((player) => !player.acted);
-    if (pending.length === 0 || pending.length === active.length) {
-      this.partyTimer = null;
-      return;
-    }
-    this.partyTimer = setTimeout(() => {
-      if (!this.game || this.game.over) return;
-      this.game.force_end_turn();
-      this.refresh();
-      this.syncParty();
-      this.armPartyTimer();
-    }, TURN_TIMEOUT_MS);
   },
 
   receiveIntent(playerId, intent) {
@@ -633,23 +610,24 @@ export const app = {
 
   clientMessage(message) {
     if (!message) return;
-    if (message.t === "full") {
+    const kind = message.t || message.type;
+    if (kind === "full") {
       this.partyError("SALA CHEIA (5/5).");
       return;
     }
-    if (message.t === "welcome") {
+    if (kind === "welcome") {
       this.lobbyCode = message.code || this.lobbyCode;
       return;
     }
-    if (message.t === "lobby") {
+    if (kind === "lobby") {
       this.clientLobby(message);
       return;
     }
-    if (message.t === "started") {
+    if (kind === "started") {
       this.lobbyStarted = true;
       return;
     }
-    if (message.t === "snapshot") {
+    if (kind === "snapshot") {
       this.game = new ClientGame(message, (intent) =>
         this.net?.sendToHost({ t: "intent", intent })
       );
@@ -660,14 +638,14 @@ export const app = {
       this.refresh();
       return;
     }
-    if (message.t === "state" && this.game) {
+    if (kind === "state" && this.game) {
       const hurt = this.game.applyState(message);
       if (hurt) ui.flash();
       this.refresh();
       this.afterClientState();
       return;
     }
-    if (message.t === "error") this.partyError(message.message || "ERRO");
+    if (kind === "error") this.partyError(message.message || "ERRO");
   },
 
   afterClientState() {
@@ -745,7 +723,6 @@ export const app = {
         this.syncParty();
       }
       this._lastLevel = game.level;
-      this.armPartyTimer();
     }
     if (game.over && !this._overShown) {
       this._overShown = true;

@@ -360,7 +360,6 @@ export const PASSWORD_WORDS = [
 // ------------------------------------------------------------------ constantes
 export const MAX_DEPTH = 10;
 export const MAX_PLAYERS = 5;
-export const TURN_TIMEOUT_MS = 4000;
 export const RESPAWN_HP_RATIO = 0.5;
 export const PLAYER_COLORS = [
   C.WHITE,

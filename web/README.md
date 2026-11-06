@@ -62,8 +62,10 @@ hospedagem estática pura.
 
 Regras do co-op:
 
-- **Turnos em lockstep:** o tick só fecha quando todos os vivos agiram. Se
-  alguém demorar mais de **4 s**, o host fecha o turno automaticamente.
+- **Turnos livres:** cada ação resolve o mundo na hora, sem esperar a party.
+  O host continua autoritativo e serializa as intenções, então ninguém precisa
+  ficar parado esperando os outros. Cada ação consome um turno do mundo; `ping`
+  do sonar não consome.
 - **Descoberta individual:** cada operador tem sua própria memória do mapa.
   Um ping ou RULER revela apenas para quem usou. Os outros só veem o tile se
   estiverem com ele iluminado na própria memória.
@@ -184,7 +186,7 @@ portas, descida, reprodutibilidade por seed, fuzz de 16 mil turnos e um bot
 que joga sozinho. Saída esperada: `TODAS AS VERIFICACOES PASSARAM.`
 
 O `npm test` também roda `tests/party.mjs`, que cobre party de 5, memória
-individual, lockstep, timeout, respawn, descida, novos inimigos e o protocolo
+individual, turnos livres, respawn, descida, novos inimigos e o protocolo
 host/cliente (`TODAS AS VERIFICACOES DE CO-OP PASSARAM.`).
 
 A suíte Python original continua válida:

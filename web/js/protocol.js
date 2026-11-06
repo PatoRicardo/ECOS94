@@ -142,6 +142,7 @@ export function serialize_snapshot(game, forId) {
   const local =
     game.players.find((player) => player.id === forId) || game.players[0];
   return {
+    t: "snapshot",
     type: "snapshot",
     v: PROTOCOL_VERSION,
     seed: game.seed,
@@ -175,6 +176,7 @@ export function serialize_state(game, forId) {
   const local =
     game.players.find((player) => player.id === forId) || game.players[0];
   return {
+    t: "state",
     type: "state",
     v: PROTOCOL_VERSION,
     depth: game.depth,

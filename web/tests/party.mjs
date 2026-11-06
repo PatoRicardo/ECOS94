@@ -1,7 +1,7 @@
 /**
  * Testes do modo cooperativo (headless, sem DOM/rede).
  *
- * Cobre party de 5, memoria individual, lockstep, timeout, respawn,
+ * Cobre party de 5, memoria individual, turnos livres, respawn,
  * descida, novos inimigos e o protocolo host/cliente.
  */
 
@@ -73,27 +73,33 @@ console.log("\n== Memoria individual ==");
   check(game.turn === 0, "ping nao fecha o turno");
 }
 
-console.log("\n== Lockstep e timeout ==");
+console.log("\n== Turnos livres ==");
 {
   const game = party(123);
   const start = game.turn;
-  game.move(1, 0, game.players[0]);
-  check(game.turn === start, "primeira acao nao fecha o turno");
-  check(game.players[0].acted === true, "jogador 0 marcado como pronto");
-  for (let id = 1; id < 5; id += 1) game.wait(game.players[id]);
-  check(game.turn === start + 1, "turno fecha quando todos agiram");
+  game.wait(game.players[0]);
+  check(game.turn === start + 1, "acao individual resolve o turno na hora");
+  check(game.players[0].acted === false, "jogador nao fica travado apos agir");
 
-  game.force_end_turn();
-  check(game.turn === start + 2, "timeout fecha o turno sozinho");
+  const turns0 = game.players[0].turns;
+  game.wait(game.players[1]);
+  check(game.turn === start + 2, "outro jogador age sem esperar a party");
+  check(
+    game.players[0].turns === turns0,
+    "turnos sao contados por jogador"
+  );
 
   const frozen = game.turn;
   game.wait(game.players[0]);
-  const acted = game.players[0].acted;
   game.wait(game.players[0]);
   check(
-    acted && game.players[0].acted && game.turn === frozen,
-    "jogador nao age duas vezes no mesmo tick"
+    game.turn === frozen + 2,
+    "jogador pode agir varias vezes seguidas"
   );
+
+  const before = game.turn;
+  game.move(1, 0, game.players[3]);
+  check(game.turn >= before, "movimento livre nao trava em tick alheio");
 }
 
 console.log("\n== Morte e respawn no proximo setor ==");
@@ -127,7 +133,7 @@ console.log("\n== RESET e late join ==");
   });
   const late = small.add_player("E");
   check(late !== null, "late join aceito durante a run");
-  check(late.acted === true, "late join nao trava o tick atual");
+  check(late.acted === false, "late join entra destravado");
   check(late.memory !== null, "late join recebe memoria do setor");
   check(small.players.length === 5, "late join completa a party");
 }
@@ -169,7 +175,7 @@ console.log("\n== Novos inimigos ==");
     test.level.monsters.push(monster);
     let threw = false;
     try {
-      test.force_end_turn();
+      test.wait(test.players[0]);
     } catch {
       threw = true;
     }
@@ -182,6 +188,7 @@ console.log("\n== Protocolo host/cliente ==");
   const game = party(606);
   const sent = [];
   const snapshot = serialize_snapshot(game, 3);
+  check(snapshot.t === "snapshot", "snapshot tem discriminador de transporte");
   check(snapshot.localId === 3, "snapshot carrega o id local correto");
   check(snapshot.players.length === 5, "snapshot carrega os 5 jogadores");
   check(snapshot.memory.length === game.level.h, "keyframe tem a altura do setor");
@@ -200,6 +207,7 @@ console.log("\n== Protocolo host/cliente ==");
   check(sent[0].a === "move" && sent[1].a === "ping", "intencoes tem acao correta");
 
   const state = serialize_state(game, 3);
+  check(state.t === "state", "estado tem discriminador de transporte");
   check(Array.isArray(state.vision), "estado carrega delta de visao");
   const memory = client.player.memory;
   client.applyState(state);
@@ -221,23 +229,24 @@ console.log("\n== Sincronizacao de varios ticks ==");
   );
   let ok = true;
   for (let tick = 0; tick < 8; tick += 1) {
-    for (const player of game.players) {
-      if (!player.dead && !player.acted) game.wait(player);
-    }
     for (let id = 0; id < 5; id += 1) {
-      clients[id].applyState(serialize_state(game, id));
-      if (
-        clients[id].turn !== game.turn ||
-        clients[id].player.x !== game.players[id].x ||
-        clients[id].player.y !== game.players[id].y ||
-        clients[id].player.hp !== game.players[id].hp ||
-        clients[id].player.id !== id
-      ) {
-        ok = false;
+      if (game.players[id].dead) continue;
+      game.wait(game.players[id]);
+      for (let viewer = 0; viewer < 5; viewer += 1) {
+        clients[viewer].applyState(serialize_state(game, viewer));
+        if (
+          clients[viewer].turn !== game.turn ||
+          clients[viewer].player.x !== game.players[viewer].x ||
+          clients[viewer].player.y !== game.players[viewer].y ||
+          clients[viewer].player.hp !== game.players[viewer].hp ||
+          clients[viewer].player.id !== viewer
+        ) {
+          ok = false;
+        }
       }
     }
   }
-  check(ok, "5 clientes acompanham 8 ticks sem divergir");
+  check(ok, "5 clientes acompanham 40 acoes sem divergir");
   check(
     clients.every((client) => visible(client.player.memory) > 0),
     "cada cliente mantem sua visao ao longo dos ticks"
@@ -250,13 +259,13 @@ console.log("\n== Turno completo com 5 jogadores ==");
   let turns = 0;
   while (turns < 30 && !game.over) {
     for (const player of game.players) {
-      if (player.dead || player.acted) continue;
+      if (player.dead) continue;
       game.wait(player);
     }
     turns += 1;
   }
-  check(!game.over, "30 ticks de espera nao acabam a run");
-  check(game.turn >= 30, "relogio avancou com a party");
+  check(!game.over, "30 rodadas de espera nao acabam a run");
+  check(game.turn >= 30, "relogio avancou com as acoes da party");
   check(game.messages.length > 0, "log continua alimentado");
 }
 

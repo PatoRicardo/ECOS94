@@ -137,7 +137,7 @@ export class Game {
       const spot = spots[player.id % spots.length] || this.level.stairs_up;
       [player.x, player.y] = spot;
       player.depth = this.depth;
-      player.acted = player.dead;
+      player.acted = false;
       player.ready = false;
       player.memory = sonar.create_memory(this.level);
       sonar.reveal_circle(
@@ -182,7 +182,7 @@ export class Game {
     this.players.push(player);
     const free = this.level.free_spot_near(this.level.stairs_up);
     [player.x, player.y] = free || this.level.stairs_up;
-    player.acted = true; // nao trava o tick em andamento
+    player.acted = false;
     player.memory = sonar.create_memory(this.level);
     sonar.reveal_circle(
       player.memory,
@@ -199,9 +199,7 @@ export class Game {
     const player = this.players.find((entry) => entry.id === id);
     if (!player) return;
     player.connected = false;
-    player.acted = true;
     this.msg(`${player.name} LOST THE SIGNAL. WAITING FOR RECONNECT.`, C.LRED);
-    if (this.partyMode) this._maybe_resolve();
   }
 
   // --------------------------------------------------------------- ruido
@@ -216,39 +214,21 @@ export class Game {
   }
 
   // ---------------------------------------------------------------- turno
-  _maybe_resolve() {
-    if (this.over) return false;
-    const active = this.activePlayers();
-    if (active.length === 0) return false;
-    if (active.every((player) => player.acted)) {
-      this.resolve_party_turn();
-      return true;
-    }
-    return false;
-  }
-
-  /** Fecha o tick mesmo que alguem nao tenha agido (timeout do host). */
-  force_end_turn() {
-    if (this.over) return false;
-    for (const player of this.activePlayers()) player.acted = true;
-    this.resolve_party_turn();
-    return true;
-  }
-
-  resolve_party_turn() {
+  /**
+   * Turnos livres: cada acao resolve o mundo na hora, sem esperar a party.
+   * O host serializa os turnos (um por intent), entao nao ha corrida.
+   */
+  resolve_party_turn(actor = this.player) {
     if (this.over) return;
     for (const [line, color] of ai.run_monsters(this)) this.msg(line, color);
-    this._advance_turn();
+    this._advance_turn(actor);
   }
 
-  _advance_turn() {
+  _advance_turn(actor = this.player) {
     this.turn += 1;
     for (const player of this.players) {
-      if (player.dead) {
-        player.acted = false;
-        continue;
-      }
-      player.turns += 1;
+      if (player.dead) continue;
+      if (player === actor) player.turns += 1;
       if (player.sonar_cooldown > 0) player.sonar_cooldown -= 1;
       player.noise = Math.max(0, player.noise - NOISE_DECAY);
       player.peak_noise = Math.max(player.peak_noise, player.noise);
@@ -299,8 +279,8 @@ export class Game {
 
   end_turn(player = this.player) {
     if (this.over) return;
-    if (player.dead || player.acted) return;
-    player.acted = true;
+    if (player.dead) return;
+    player.acted = false;
     sonar.reveal_circle(
       player.memory,
       player.x,
@@ -308,12 +288,7 @@ export class Game {
       PERSONAL_RADIUS,
       this.turn
     );
-    if (!this.partyMode) {
-      for (const [line, color] of ai.run_monsters(this)) this.msg(line, color);
-      this._advance_turn();
-      return;
-    }
-    this._maybe_resolve();
+    this.resolve_party_turn(player);
   }
 
   // ------------------------------------------------------------- comandos
@@ -360,7 +335,7 @@ export class Game {
   }
 
   move(dx, dy, player = this.player) {
-    if (this.over || player.dead || (this.partyMode && player.acted)) return;
+    if (this.over || player.dead) return;
     const nx = player.x + dx;
     const ny = player.y + dy;
     if (!this.level.in_bounds(nx, ny)) return;
@@ -446,7 +421,7 @@ export class Game {
 
   // ---------------------------------------------------------------- sonar
   ping(player = this.player) {
-    if (player.dead || (this.partyMode && player.acted)) return false;
+    if (player.dead) return false;
     if (player.sonar_cooldown > 0) {
       this.msg(`${this.who(player)}SONAR RECHARGING (${player.sonar_cooldown} TURNS).`, C.LRED);
       return false;
@@ -472,7 +447,7 @@ export class Game {
   }
 
   measure(dx, dy, player = this.player) {
-    if (player.dead || (this.partyMode && player.acted)) return;
+    if (player.dead) return;
     const { distance, cells } = sonar.reveal_ray(
       player.memory,
       this.level,
@@ -514,7 +489,7 @@ export class Game {
   }
 
   lock_door(player = this.player) {
-    if (player.dead || (this.partyMode && player.acted)) return false;
+    if (player.dead) return false;
     if (this._adjacent_door(null, null, player) === null) {
       this.msg(`${this.who(player)}NO DOOR BESIDE YOU.`);
       return false;
@@ -533,7 +508,7 @@ export class Game {
   }
 
   unlock_door(player = this.player) {
-    if (player.dead || (this.partyMode && player.acted)) return false;
+    if (player.dead) return false;
     const tile = this._adjacent_door(DOOR_LOCKED, null, player);
     if (tile === null) {
       this.msg(`${this.who(player)}NO LOCKED DOOR BESIDE YOU.`);
@@ -552,7 +527,7 @@ export class Game {
   }
 
   brute_force(player = this.player) {
-    if (player.dead || (this.partyMode && player.acted)) return false;
+    if (player.dead) return false;
     const tile = this._adjacent_door(DOOR_LOCKED, null, player);
     if (tile === null) {
       this.msg(`${this.who(player)}NO LOCKED DOOR BESIDE YOU.`);
@@ -592,7 +567,7 @@ export class Game {
 
   // ------------------------------------------------------------------ itens
   pickup(player = this.player) {
-    if (player.dead || (this.partyMode && player.acted)) return;
+    if (player.dead) return;
     const rom = this.level.rom_at(player.x, player.y);
     if (rom !== null) {
       this.read_rom(rom, player);
@@ -646,7 +621,6 @@ export class Game {
     if (slot === null) return false;
     const index = player.inventory.indexOf(item);
     if (index < 0) return false;
-    if (this.partyMode && player.acted) return false;
     player.inventory.splice(index, 1);
     const current = player.equipped[slot];
     player.equipped[slot] = item;
@@ -657,7 +631,6 @@ export class Game {
   }
 
   drop_item(item, player = this.player) {
-    if (this.partyMode && player.acted) return false;
     const index = player.inventory.indexOf(item);
     if (index >= 0) player.inventory.splice(index, 1);
     item.x = player.x;
@@ -669,7 +642,6 @@ export class Game {
   }
 
   use_item(item, player = this.player) {
-    if (this.partyMode && player.acted) return false;
     const data = item.data;
     if (item.category !== "consumable") {
       this.msg(`${this.who(player)}THE ${item.name} CANNOT BE USED.`);
@@ -703,7 +675,6 @@ export class Game {
 
   // ------------------------------------------------------------------- ROM
   read_rom(rom, player = this.player) {
-    if (this.partyMode && player.acted) return false;
     if (player.free_rom_slots <= 0) {
       this.msg(`${this.who(player)}NO FREE ROM SLOT. CHOOSE ONE TO OVERWRITE.`, C.LRED);
       return false;

@@ -180,12 +180,14 @@ export const ui = {
         const local = player.id === game.local_id;
         const state = player.dead
           ? "dead"
-          : player.acted
-            ? "ready"
-            : player.connected
-              ? "wait"
-              : "lost";
-        const label = player.dead ? "DEAD" : player.acted ? "OK" : "…";
+          : player.connected === false
+            ? "lost"
+            : "ready";
+        const label = player.dead
+          ? "DEAD"
+          : player.connected === false
+            ? "LOST"
+            : "LIVE";
         return `<span class="party-member ${state}${local ? " local" : ""}" title="${esc(player.name)}">
           <b style="color:${color(player.color)}">${esc(player.glyph || "?")}</b>
           <span class="pm-name">${esc(player.name)}</span>
