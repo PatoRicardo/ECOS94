@@ -254,7 +254,8 @@ export class Game {
     const alive = this.alivePlayers();
     if (alive.length === 0 || this.over) return;
     const down = this.level.stairs_down;
-    if (alive.every((player) => player.x === down[0] && player.y === down[1])) {
+    // Qualquer operador na escada desce a party inteira (turnos livres).
+    if (alive.some((player) => player.x === down[0] && player.y === down[1])) {
       this.descend();
     }
   }
@@ -347,11 +348,6 @@ export class Game {
       return;
     }
 
-    if (this._player_at(nx, ny, player)) {
-      this.msg(`${this.who(player)}THE WAY IS BLOCKED BY ANOTHER OPERATOR.`, C.LRED);
-      return;
-    }
-
     const tile = this.level.tiles[ny][nx];
     if (tile.blocks()) {
       if (tile.is_door()) {
@@ -379,8 +375,8 @@ export class Game {
     player.y = ny;
     this.add_noise(status.step_noise(player, this.level), [nx, ny], player);
     if (nx === this.level.stairs_down[0] && ny === this.level.stairs_down[1]) {
-      if (!this.partyMode) this.descend();
-      else player.ready = true;
+      // No co-op, quem alcanca a escada leva a party inteira para o proximo setor.
+      this.descend();
     }
     this.end_turn(player);
   }

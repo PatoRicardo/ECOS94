@@ -70,6 +70,34 @@ console.log("== Party de 5 ==");
   check(!party_visible(a, b), "operador invisivel alem de 6 tiles");
 }
 
+console.log("\n== Sem colisao entre operadores ==");
+{
+  const game = party(771);
+  game.level.monsters = [];
+  const [a, b] = game.players;
+  const [downX, downY] = game.level.stairs_down;
+  const origin = [
+    [a.x - 1, a.y],
+    [a.x + 1, a.y],
+    [a.x, a.y - 1],
+    [a.x, a.y + 1],
+  ].find(
+    ([x, y]) =>
+      game.level.in_bounds(x, y) &&
+      game.level.is_passable(x, y) &&
+      !(x === downX && y === downY)
+  );
+  if (origin) {
+    [b.x, b.y] = origin;
+    const turn = game.turn;
+    game.move(a.x - b.x, a.y - b.y, b);
+    check(b.x === a.x && b.y === a.y, "operadores podem dividir o tile");
+    check(game.turn > turn, "andar sobre o outro gasta turno normalmente");
+  } else {
+    check(false, "nao foi possivel montar o cenario de sobreposicao");
+  }
+}
+
 console.log("\n== Memoria individual ==");
 {
   const game = party(99);
@@ -153,15 +181,41 @@ console.log("\n== Descida da party ==");
 {
   const game = party(31);
   const depth = game.depth;
-  for (const player of game.players.filter((p) => !p.dead)) {
-    [player.x, player.y] = game.level.stairs_down;
-  }
+  const [downX, downY] = game.level.stairs_down;
+  game.players[0].x = downX;
+  game.players[0].y = downY;
   game._check_descend();
-  check(game.depth === depth + 1, "party inteira na escada desce junta");
+  check(game.depth === depth + 1, "um operador na escada desce a party");
+  check(
+    game.players.every((p) => p.depth === game.depth),
+    "party inteira muda de setor junto"
+  );
   check(
     game.players.some((p) => p.x === game.level.stairs_up[0] && p.y === game.level.stairs_up[1]),
     "party aparece na entrada do novo setor"
   );
+
+  const moved = party(32);
+  moved.level.monsters = [];
+  const targetDepth = moved.depth;
+  const [tx, ty] = moved.level.stairs_down;
+  const origin = [
+    [tx - 1, ty],
+    [tx + 1, ty],
+    [tx, ty - 1],
+    [tx, ty + 1],
+  ].find(
+    ([x, y]) =>
+      moved.level.in_bounds(x, y) &&
+      moved.level.is_passable(x, y) &&
+      !moved._player_at(x, y)
+  );
+  if (origin) {
+    const walker = moved.players[0];
+    [walker.x, walker.y] = origin;
+    moved.move(tx - walker.x, ty - walker.y, walker);
+  }
+  check(moved.depth === targetDepth + 1, "pisar na escada inicia a descida");
 }
 
 console.log("\n== Novos inimigos ==");
@@ -230,6 +284,20 @@ console.log("\n== Protocolo host/cliente ==");
   const visibleAfter = visible(client.player.memory);
   client.applyState(serialize_state(game, 3));
   check(visible(client.player.memory) >= visibleAfter - 200, "memoria sobrevive a varios estados");
+
+  const descending = party(707);
+  descending.level.monsters = [];
+  const before = descending.depth;
+  [descending.players[0].x, descending.players[0].y] = descending.level.stairs_down;
+  descending.wait(descending.players[0]);
+  check(descending.depth === before + 1, "descida avanca o host");
+  const nextSector = new ClientGame(serialize_snapshot(descending, 2), () => {});
+  check(nextSector.depth === descending.depth, "cliente recebe o novo setor");
+  check(
+    nextSector.level.stairs_down[0] === descending.level.stairs_down[0] &&
+      nextSector.level.stairs_down[1] === descending.level.stairs_down[1],
+    "cliente reconstruiu a escada do novo setor"
+  );
 }
 
 console.log("\n== Sincronizacao de varios ticks ==");

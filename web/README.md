@@ -72,6 +72,10 @@ Regras do co-op:
 - **Party à vista:** todos os operadores usam `@` e se enxergam num raio de
   **6 tiles**, mesmo que o tile ainda não esteja na sua memória. A cor de cada
   `@` identifica o operador.
+- **Sem colisão:** operadores podem ocupar o mesmo tile; ninguém bloqueia o
+  caminho de ninguém (evita ficar preso em corredores).
+- **Escada:** quando qualquer operador alcança a escada `>`, ele leva a party
+  inteira para o próximo setor. Não é preciso todo mundo ficar na mesma tile.
 - **Morte:** o operador vira `%` e fica fora até a party descer para o próximo
   setor; então renasce na entrada com metade do HP máximo. A run só termina
   quando todos morrem (wipe) ou a party vence o setor 10.
