@@ -361,6 +361,8 @@ export const PASSWORD_WORDS = [
 export const MAX_DEPTH = 10;
 export const MAX_PLAYERS = 5;
 export const RESPAWN_HP_RATIO = 0.5;
+/** Operadores enxergam uns aos outros ate esta distancia (Chebyshev). */
+export const PARTY_SIGHT_RADIUS = 6;
 export const PLAYER_COLORS = [
   C.WHITE,
   C.LCYAN,
@@ -368,7 +370,8 @@ export const PLAYER_COLORS = [
   C.YELLOW,
   C.LMAGENTA,
 ];
-export const PLAYER_GLYPHS = ["@", "1", "2", "3", "4"];
+/** Todos os operadores usam o mesmo simbolo; a cor identifica cada um. */
+export const PLAYER_GLYPHS = ["@"];
 export const BASE_CAPACITY = 40;
 export const NOISE_MAX = 100;
 export const NOISE_DECAY = 4;

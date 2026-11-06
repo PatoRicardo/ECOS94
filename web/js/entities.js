@@ -4,11 +4,18 @@ import {
   BASE_CAPACITY,
   ITEMS,
   MONSTERS,
+  PARTY_SIGHT_RADIUS,
   PLAYER_COLORS,
   PLAYER_GLYPHS,
   ROMS,
   ROM_SLOTS,
 } from "./data.js";
+
+/** Operadores se enxergam dentro do raio da party, mesmo sem memoria do tile. */
+export function party_visible(a, b, radius = PARTY_SIGHT_RADIUS) {
+  if (!a || !b) return false;
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) <= radius;
+}
 
 export class Item {
   constructor(kind, charges = 1, payload = null) {

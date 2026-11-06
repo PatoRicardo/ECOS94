@@ -7,6 +7,7 @@
  */
 
 import { C, color } from "./theme.js";
+import { party_visible } from "./entities.js";
 
 const FONT_STACK =
   '"Cascadia Mono", "Consolas", "DejaVu Sans Mono", "Courier New", monospace';
@@ -215,11 +216,12 @@ export class Renderer {
       );
     }
 
-    // Outros operadores: apenas se o tile estiver iluminado para voce.
+    // Outros operadores: visiveis se o tile estiver iluminado para voce
+    // ou se estiverem dentro do raio de percepcao da party (6 tiles).
     for (const other of game.players) {
       if (other === player) continue;
       const known = memory?.known[other.y]?.[other.x];
-      if (known !== 2) continue;
+      if (known !== 2 && !party_visible(player, other)) continue;
       const col = other.x - vx;
       const row = other.y - vy;
       if (col < 0 || col >= cols || row < 0 || row >= rows) continue;

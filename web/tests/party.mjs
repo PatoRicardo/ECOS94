@@ -6,9 +6,9 @@
  */
 
 import { setMuted } from "../js/audio.js";
-import { MONSTERS, SPAWN_TABLE } from "../js/data.js";
+import { MONSTERS, PARTY_SIGHT_RADIUS, PLAYER_GLYPHS, SPAWN_TABLE } from "../js/data.js";
 import { Game } from "../js/game.js";
-import { Monster } from "../js/entities.js";
+import { Monster, party_visible } from "../js/entities.js";
 import { ClientGame, serialize_snapshot, serialize_state } from "../js/protocol.js";
 
 setMuted(true);
@@ -57,6 +57,17 @@ console.log("== Party de 5 ==");
     new Set(game.players.map((p) => p.color)).size === 5,
     "cores distintas para 5 operadores"
   );
+  check(
+    game.players.every((p) => p.glyph === "@") &&
+      PLAYER_GLYPHS.every((glyph) => glyph === "@"),
+    "todos os operadores usam @"
+  );
+  const [a, b] = game.players;
+  b.x = a.x + PARTY_SIGHT_RADIUS;
+  b.y = a.y;
+  check(party_visible(a, b), "operador visivel no limite de 6 tiles");
+  b.x = a.x + PARTY_SIGHT_RADIUS + 1;
+  check(!party_visible(a, b), "operador invisivel alem de 6 tiles");
 }
 
 console.log("\n== Memoria individual ==");

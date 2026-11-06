@@ -69,6 +69,9 @@ Regras do co-op:
 - **Descoberta individual:** cada operador tem sua própria memória do mapa.
   Um ping ou RULER revela apenas para quem usou. Os outros só veem o tile se
   estiverem com ele iluminado na própria memória.
+- **Party à vista:** todos os operadores usam `@` e se enxergam num raio de
+  **6 tiles**, mesmo que o tile ainda não esteja na sua memória. A cor de cada
+  `@` identifica o operador.
 - **Morte:** o operador vira `%` e fica fora até a party descer para o próximo
   setor; então renasce na entrada com metade do HP máximo. A run só termina
   quando todos morrem (wipe) ou a party vence o setor 10.
